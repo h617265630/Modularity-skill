@@ -1,0 +1,333 @@
+{
+  "command": "/trash-m",
+  "feature_name": "trash_system",
+  "description": "Soft delete trash system with restore and permanent delete functionality",
+
+  "backend": {
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/trash",
+        "handler_name": "get_user_trash",
+        "auth_required": true,
+        "pagination": "cursor"
+      },
+      {
+        "method": "POST",
+        "path": "/trash/{type}/{id}",
+        "handler_name": "move_to_trash",
+        "auth_required": true
+      },
+      {
+        "method": "POST",
+        "path": "/trash/{type}/{id}/restore",
+        "handler_name": "restore_from_trash",
+        "auth_required": true
+      },
+      {
+        "method": "DELETE",
+        "path": "/trash/{type}/{id}/permanent",
+        "handler_name": "permanent_delete",
+        "auth_required": true
+      },
+      {
+        "method": "DELETE",
+        "path": "/trash/empty",
+        "handler_name": "empty_trash",
+        "auth_required": true
+      }
+    ],
+    "services": [
+      {
+        "name": "TrashService",
+        "description": "Business logic for trash operations",
+        "methods": [
+          {
+            "name": "soft_delete",
+            "description": "Move item to trash (soft delete)",
+            "async": true
+          },
+          {
+            "name": "restore",
+            "description": "Restore item from trash",
+            "async": true
+          },
+          {
+            "name": "permanent_delete",
+            "description": "Permanently delete item",
+            "async": true
+          },
+          {
+            "name": "get_trash_items",
+            "description": "Get user's trash items",
+            "async": true
+          },
+          {
+            "name": "empty_trash",
+            "description": "Empty all items in trash",
+            "async": true
+          },
+          {
+            "name": "auto_cleanup_old_trash",
+            "description": "Auto-delete items older than retention period",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "models": [
+      {
+        "name": "TrashItem",
+        "table_name": "trash_items",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id",
+            "index": true
+          },
+          {
+            "name": "item_type",
+            "type": "string",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "item_id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "original_data",
+            "type": "json",
+            "nullable": false
+          },
+          {
+            "name": "deleted_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          },
+          {
+            "name": "expires_at",
+            "type": "datetime",
+            "nullable": false
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_trash_user",
+            "columns": ["user_id"]
+          },
+          {
+            "name": "idx_trash_item",
+            "columns": ["item_type", "item_id"]
+          },
+          {
+            "name": "idx_trash_expires",
+            "columns": ["expires_at"]
+          }
+        ]
+      }
+    ],
+    "curds": [
+      {
+        "name": "trash_item_crud",
+        "model_name": "TrashItem",
+        "operations": ["create", "read", "delete"]
+      }
+    ]
+  },
+
+  "frontend": {
+    "components": [
+      {
+        "name": "TrashItemCard",
+        "description": "Card displaying item in trash",
+        "props": [
+          {
+            "name": "item",
+            "type": "TrashItem",
+            "required": true
+          },
+          {
+            "name": "onRestore",
+            "type": "() => void",
+            "required": true
+          },
+          {
+            "name": "onPermanentDelete",
+            "type": "() => void",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "TrashList",
+        "description": "List of all items in trash",
+        "props": [
+          {
+            "name": "onRestore",
+            "type": "(item: TrashItem) => void",
+            "required": true
+          },
+          {
+            "name": "onPermanentDelete",
+            "type": "(item: TrashItem) => void",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "EmptyTrashButton",
+        "description": "Button to empty entire trash",
+        "props": [
+          {
+            "name": "onConfirm",
+            "type": "() => void",
+            "required": true
+          },
+          {
+            "name": "itemCount",
+            "type": "number",
+            "required": false
+          }
+        ]
+      }
+    ],
+    "hooks": [
+      {
+        "name": "useTrash",
+        "description": "Get user's trash items",
+        "returns": "{ items: TrashItem[]; loading: boolean; refresh: () => void }"
+      },
+      {
+        "name": "useRestore",
+        "description": "Restore item from trash",
+        "returns": "{ restore: (type: string, id: string) => Promise<void>; isLoading: boolean }"
+      },
+      {
+        "name": "usePermanentDelete",
+        "description": "Permanently delete item",
+        "returns": "{ delete: (type: string, id: string) => Promise<void>; isLoading: boolean }"
+      },
+      {
+        "name": "useEmptyTrash",
+        "description": "Empty entire trash",
+        "returns": "{ empty: () => Promise<void>; isLoading: boolean }"
+      }
+    ],
+    "pages": [
+      {
+        "name": "TrashPage",
+        "route": "/trash",
+        "description": "User's trash page showing deleted items"
+      }
+    ]
+  },
+
+  "database": {
+    "tables": [
+      {
+        "name": "trash_items",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "item_type",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "item_id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "original_data",
+            "type": "json",
+            "nullable": false
+          },
+          {
+            "name": "deleted_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "expires_at",
+            "type": "datetime",
+            "nullable": false
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_trash_user",
+            "columns": ["user_id"]
+          },
+          {
+            "name": "idx_trash_item",
+            "columns": ["item_type", "item_id"]
+          },
+          {
+            "name": "idx_trash_expires",
+            "columns": ["expires_at"]
+          }
+        ]
+      }
+    ],
+    "migrations": [
+      {
+        "name": "create_trash_items_table",
+        "sql": "CREATE TABLE IF NOT EXISTS trash_items (...)"
+      }
+    ]
+  },
+
+  "integration": {
+    "steps": [
+      "1. Run database migration to create 'trash_items' table",
+      "2. Add backend models in backend/app/db/models/trash.py",
+      "3. Add CRUD operations in backend/app/cruds/trash_crud.py",
+      "4. Register API routes in backend/app/api/router.py",
+      "5. Create frontend components in frontend/src/components/trash/",
+      "6. Add API service in frontend/src/services/trash.ts",
+      "7. Integrate soft delete into Post, Comment, and other content modules",
+      "8. Set up scheduled job for auto-cleanup",
+      "9. Test restore and permanent delete functionality"
+    ],
+    "config_needed": [
+      "Configure trash retention period (default: 30 days)",
+      "Set up scheduled cleanup job",
+      "Configure which item types support trash"
+    ]
+  }
+}

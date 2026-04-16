@@ -1,0 +1,276 @@
+{
+  "command": "/like",
+  "feature_name": "like_system",
+  "description": "[DEPRECATED] Use /interaction-m instead. Like/unlike functionality - now part of unified interaction system",
+  "deprecated": true,
+  "replaced_by": "interaction-m",
+
+  "backend": {
+    "routes": [
+      {
+        "method": "POST",
+        "path": "/likes",
+        "handler_name": "create_like",
+        "auth_required": true
+      },
+      {
+        "method": "DELETE",
+        "path": "/likes/{id}",
+        "handler_name": "delete_like",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/likes/check/{target_type}/{target_id}",
+        "handler_name": "check_liked",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/likes/{target_type}/{target_id}/count",
+        "handler_name": "get_like_count",
+        "auth_required": false
+      },
+      {
+        "method": "GET",
+        "path": "/likes/user/me",
+        "handler_name": "get_my_likes",
+        "auth_required": true,
+        "pagination": "cursor"
+      }
+    ],
+    "services": [
+      {
+        "name": "LikeService",
+        "description": "Business logic for like operations",
+        "methods": [
+          {
+            "name": "toggle_like",
+            "description": "Toggle like status (like if not liked, unlike if liked)",
+            "async": true
+          },
+          {
+            "name": "bulk_check_likes",
+            "description": "Check like status for multiple targets",
+            "async": true
+          },
+          {
+            "name": "get_popular_targets",
+            "description": "Get most liked targets with cursor pagination",
+            "async": true
+          },
+          {
+            "name": "get_user_likes",
+            "description": "Get user's liked items with cursor pagination",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "models": [
+      {
+        "name": "Like",
+        "table_name": "likes",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id",
+            "index": true
+          },
+          {
+            "name": "target_type",
+            "type": "string",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "target_id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_likes_user_target",
+            "columns": ["user_id", "target_type", "target_id"],
+            "unique": true
+          },
+          {
+            "name": "idx_likes_target",
+            "columns": ["target_type", "target_id"]
+          }
+        ]
+      }
+    ],
+    "curds": [
+      {
+        "name": "like_crud",
+        "model_name": "Like",
+        "operations": ["create", "read", "delete"]
+      }
+    ]
+  },
+
+  "frontend": {
+    "components": [
+      {
+        "name": "LikeButton",
+        "description": "Like/unlike button with counter",
+        "props": [
+          {
+            "name": "targetType",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "targetId",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "showCount",
+            "type": "boolean",
+            "required": false
+          },
+          {
+            "name": "size",
+            "type": "'small' | 'medium' | 'large'",
+            "required": false
+          },
+          {
+            "name": "onLikeChange",
+            "type": "(isLiked: boolean) => void",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "LikeCount",
+        "description": "Display like count with icon",
+        "props": [
+          {
+            "name": "targetType",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "targetId",
+            "type": "string",
+            "required": true
+          }
+        ]
+      }
+    ],
+    "hooks": [
+      {
+        "name": "useLike",
+        "description": "Check and manage like status for a target",
+        "returns": "LikeState"
+      },
+      {
+        "name": "useLikeCount",
+        "description": "Get like count for a target",
+        "returns": "{ count: number; loading: boolean }"
+      },
+      {
+        "name": "useBulkLikes",
+        "description": "Check like status for multiple targets",
+        "returns": "BulkLikeState"
+      }
+    ],
+    "pages": []
+  },
+
+  "database": {
+    "tables": [
+      {
+        "name": "likes",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "target_type",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "target_id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_likes_user_target",
+            "columns": ["user_id", "target_type", "target_id"],
+            "unique": true
+          },
+          {
+            "name": "idx_likes_target",
+            "columns": ["target_type", "target_id"]
+          }
+        ]
+      }
+    ],
+    "migrations": [
+      {
+        "name": "create_likes_table",
+        "sql": "CREATE TABLE IF NOT EXISTS likes (...)"
+      }
+    ]
+  },
+
+  "integration": {
+    "steps": [
+      "1. Run database migration to create 'likes' table",
+      "2. Add backend models in backend/app/db/models/like.py",
+      "3. Add CRUD operations in backend/app/cruds/like_crud.py",
+      "4. Register API routes in backend/app/api/router.py",
+      "5. Create frontend components in frontend/src/components/likes/",
+      "6. Add API service in frontend/src/services/likes.ts",
+      "7. Integrate LikeButton component into relevant pages/posts",
+      "8. Test like/unlike functionality"
+    ],
+    "config_needed": [
+      "Ensure users table exists for foreign key relationship",
+      "Configure authentication middleware for protected routes",
+      "Set up caching for like counts to improve performance"
+    ]
+  }
+}

@@ -1,0 +1,661 @@
+{
+  "command": "/user-m",
+  "feature_name": "user_system",
+  "description": "Core user system with authentication, profile management and user relationships",
+
+  "backend": {
+    "routes": [
+      {
+        "method": "POST",
+        "path": "/auth/register",
+        "handler_name": "register",
+        "auth_required": false
+      },
+      {
+        "method": "POST",
+        "path": "/auth/login",
+        "handler_name": "login",
+        "auth_required": false
+      },
+      {
+        "method": "POST",
+        "path": "/auth/logout",
+        "handler_name": "logout",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/auth/me",
+        "handler_name": "get_current_user",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/users/{id}",
+        "handler_name": "get_user",
+        "auth_required": false
+      },
+      {
+        "method": "PATCH",
+        "path": "/users/{id}",
+        "handler_name": "update_user",
+        "auth_required": true
+      },
+      {
+        "method": "DELETE",
+        "path": "/users/{id}",
+        "handler_name": "delete_user",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/users/search",
+        "handler_name": "search_users",
+        "auth_required": false
+      }
+    ],
+    "services": [
+      {
+        "name": "AuthService",
+        "description": "Authentication and authorization logic",
+        "methods": [
+          {
+            "name": "verify_password",
+            "description": "Verify password against hash",
+            "async": false
+          },
+          {
+            "name": "get_password_hash",
+            "description": "Generate password hash",
+            "async": false
+          },
+          {
+            "name": "create_access_token",
+            "description": "Create JWT access token",
+            "async": false
+          },
+          {
+            "name": "verify_token",
+            "description": "Verify JWT token",
+            "async": false
+          }
+        ]
+      },
+      {
+        "name": "UserService",
+        "description": "User management business logic",
+        "methods": [
+          {
+            "name": "get_user_by_email",
+            "description": "Find user by email",
+            "async": true
+          },
+          {
+            "name": "get_user_by_username",
+            "description": "Find user by username",
+            "async": true
+          },
+          {
+            "name": "validate_username",
+            "description": "Check if username is available",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "models": [
+      {
+        "name": "User",
+        "table_name": "users",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "email",
+            "type": "string",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "username",
+            "type": "string",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "password_hash",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "full_name",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "avatar_url",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "bio",
+            "type": "text",
+            "nullable": true
+          },
+          {
+            "name": "is_active",
+            "type": "boolean",
+            "nullable": false,
+            "default": "true"
+          },
+          {
+            "name": "is_verified",
+            "type": "boolean",
+            "nullable": false,
+            "default": "false"
+          },
+          {
+            "name": "last_login_at",
+            "type": "datetime",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          },
+          {
+            "name": "updated_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_users_email",
+            "columns": ["email"],
+            "unique": true
+          },
+          {
+            "name": "idx_users_username",
+            "columns": ["username"],
+            "unique": true
+          }
+        ]
+      },
+      {
+        "name": "UserProfile",
+        "table_name": "user_profiles",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id",
+            "index": true
+          },
+          {
+            "name": "phone",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "date_of_birth",
+            "type": "datetime",
+            "nullable": true
+          },
+          {
+            "name": "gender",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "location",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "website_url",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "twitter_handle",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "github_username",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "avatar_media_id",
+            "type": "integer",
+            "nullable": true,
+            "description": "Reference to media table for avatar image (used by avatar-m)"
+          },
+          {
+            "name": "avatar_url",
+            "type": "string",
+            "nullable": true,
+            "description": "Denormalized avatar URL for quick access"
+          },
+          {
+            "name": "follower_count",
+            "type": "integer",
+            "nullable": false,
+            "default": "0"
+          },
+          {
+            "name": "following_count",
+            "type": "integer",
+            "nullable": false,
+            "default": "0"
+          },
+          {
+            "name": "post_count",
+            "type": "integer",
+            "nullable": false,
+            "default": "0"
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          },
+          {
+            "name": "updated_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_user_profiles_user",
+            "columns": ["user_id"],
+            "unique": true
+          }
+        ]
+      }
+    ],
+    "curds": [
+      {
+        "name": "user_crud",
+        "model_name": "User",
+        "operations": ["create", "read", "update", "delete"]
+      },
+      {
+        "name": "user_profile_crud",
+        "model_name": "UserProfile",
+        "operations": ["create", "read", "update"]
+      }
+    ]
+  },
+
+  "frontend": {
+    "components": [
+      {
+        "name": "UserAvatar",
+        "description": "User avatar display with fallback",
+        "props": [
+          {
+            "name": "user",
+            "type": "User",
+            "required": true
+          },
+          {
+            "name": "size",
+            "type": "'small' | 'medium' | 'large' | 'xlarge'",
+            "required": false
+          },
+          {
+            "name": "showOnlineStatus",
+            "type": "boolean",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "UserCard",
+        "description": "User card with basic info and actions",
+        "props": [
+          {
+            "name": "user",
+            "type": "User",
+            "required": true
+          },
+          {
+            "name": "onFollow",
+            "type": "() => void",
+            "required": false
+          },
+          {
+            "name": "showFollowButton",
+            "type": "boolean",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "UserProfileForm",
+        "description": "Form for editing user profile",
+        "props": [
+          {
+            "name": "initialData",
+            "type": "Partial<UserProfile>",
+            "required": false
+          },
+          {
+            "name": "onSubmit",
+            "type": "(data: Partial<UserProfile>) => void",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "LoginForm",
+        "description": "Login form with email/password",
+        "props": [
+          {
+            "name": "onSuccess",
+            "type": "() => void",
+            "required": true
+          },
+          {
+            "name": "onForgotPassword",
+            "type": "() => void",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "RegisterForm",
+        "description": "Registration form",
+        "props": [
+          {
+            "name": "onSuccess",
+            "type": "() => void",
+            "required": true
+          },
+          {
+            "name": "onLoginLink",
+            "type": "() => void",
+            "required": false
+          }
+        ]
+      }
+    ],
+    "hooks": [
+      {
+        "name": "useCurrentUser",
+        "description": "Get current authenticated user",
+        "returns": "User | null"
+      },
+      {
+        "name": "useUser",
+        "description": "Fetch user by ID",
+        "returns": "{ user: User | null; loading: boolean; error: string | null }"
+      },
+      {
+        "name": "useUserProfile",
+        "description": "Fetch user profile",
+        "returns": "{ profile: UserProfile | null; loading: boolean }"
+      },
+      {
+        "name": "useAuth",
+        "description": "Authentication state and methods",
+        "returns": "{ user: User | null; login: Function; logout: Function; register: Function }"
+      },
+      {
+        "name": "useSearchUsers",
+        "description": "Search users by query",
+        "returns": "{ results: User[]; search: Function; loading: boolean }"
+      }
+    ],
+    "pages": [
+      {
+        "name": "ProfilePage",
+        "route": "/users/{id}",
+        "description": "User profile page"
+      },
+      {
+        "name": "EditProfilePage",
+        "route": "/settings/profile",
+        "description": "Edit current user profile"
+      },
+      {
+        "name": "LoginPage",
+        "route": "/login",
+        "description": "Login page"
+      },
+      {
+        "name": "RegisterPage",
+        "route": "/register",
+        "description": "Registration page"
+      }
+    ]
+  },
+
+  "database": {
+    "tables": [
+      {
+        "name": "users",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "email",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "username",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "password_hash",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "full_name",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "avatar_url",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "bio",
+            "type": "text",
+            "nullable": true
+          },
+          {
+            "name": "is_active",
+            "type": "boolean",
+            "nullable": false,
+            "default": "true"
+          },
+          {
+            "name": "is_verified",
+            "type": "boolean",
+            "nullable": false,
+            "default": "false"
+          },
+          {
+            "name": "last_login_at",
+            "type": "datetime",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "updated_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_users_email",
+            "columns": ["email"],
+            "unique": true
+          },
+          {
+            "name": "idx_users_username",
+            "columns": ["username"],
+            "unique": true
+          }
+        ]
+      },
+      {
+        "name": "user_profiles",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "phone",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "date_of_birth",
+            "type": "datetime",
+            "nullable": true
+          },
+          {
+            "name": "gender",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "location",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "website_url",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "twitter_handle",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "github_username",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "follower_count",
+            "type": "integer",
+            "nullable": false,
+            "default": "0"
+          },
+          {
+            "name": "following_count",
+            "type": "integer",
+            "nullable": false,
+            "default": "0"
+          },
+          {
+            "name": "post_count",
+            "type": "integer",
+            "nullable": false,
+            "default": "0"
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "updated_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_user_profiles_user",
+            "columns": ["user_id"],
+            "unique": true
+          }
+        ]
+      }
+    ],
+    "migrations": [
+      {
+        "name": "create_users_table",
+        "sql": "CREATE TABLE IF NOT EXISTS users (...)"
+      },
+      {
+        "name": "create_user_profiles_table",
+        "sql": "CREATE TABLE IF NOT EXISTS user_profiles (...)"
+      }
+    ]
+  },
+
+  "integration": {
+    "steps": [
+      "1. Run database migration to create 'users' and 'user_profiles' tables",
+      "2. Add backend models in backend/app/db/models/user.py",
+      "3. Add backend models in backend/app/db/models/user_profile.py",
+      "4. Add CRUD operations in backend/app/cruds/user_crud.py",
+      "5. Add CRUD operations in backend/app/cruds/user_profile_crud.py",
+      "6. Register API routes in backend/app/api/router.py",
+      "7. Configure JWT secret and auth settings in backend/config.py",
+      "8. Create frontend components in frontend/src/components/users/",
+      "9. Add API service in frontend/src/services/auth.ts",
+      "10. Integrate UserAvatar and UserCard into navigation and content",
+      "11. Test authentication flow (register, login, logout)",
+      "12. Configure password hashing (bcrypt) in backend"
+    ],
+    "config_needed": [
+      "Set JWT_SECRET environment variable for token signing",
+      "Configure password hashing rounds (recommended: 12)",
+      "Set up email service for verification emails",
+      "Configure CORS settings for frontend-backend communication",
+      "Set up rate limiting for auth endpoints to prevent brute force"
+    ]
+  }
+}

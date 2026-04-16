@@ -1,0 +1,315 @@
+{
+  "command": "/checkin-m",
+  "feature_name": "checkin_system",
+  "description": "Daily check-in system for user engagement",
+
+  "backend": {
+    "routes": [
+      {
+        "method": "POST",
+        "path": "/checkin",
+        "handler_name": "checkin",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/checkin/status",
+        "handler_name": "get_checkin_status",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/checkin/history",
+        "handler_name": "get_checkin_history",
+        "auth_required": true,
+        "pagination": "cursor"
+      },
+      {
+        "method": "GET",
+        "path": "/checkin/streak",
+        "handler_name": "get_checkin_streak",
+        "auth_required": true
+      }
+    ],
+    "services": [
+      {
+        "name": "CheckinService",
+        "description": "Business logic for check-in operations",
+        "methods": [
+          {
+            "name": "daily_checkin",
+            "description": "Process daily check-in",
+            "async": true
+          },
+          {
+            "name": "get_checkin_status",
+            "description": "Get today's check-in status",
+            "async": true
+          },
+          {
+            "name": "get_streak",
+            "description": "Get current check-in streak",
+            "async": true
+          },
+          {
+            "name": "get_checkin_history",
+            "description": "Get check-in history",
+            "async": true
+          },
+          {
+            "name": "calculate_rewards",
+            "description": "Calculate rewards for check-in",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "models": [
+      {
+        "name": "DailyCheckin",
+        "table_name": "daily_checkins",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id",
+            "index": true
+          },
+          {
+            "name": "checkin_date",
+            "type": "date",
+            "nullable": false
+          },
+          {
+            "name": "points_earned",
+            "type": "integer",
+            "nullable": false,
+            "default": "0"
+          },
+          {
+            "name": "reward_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_daily_checkins_user",
+            "columns": ["user_id"]
+          },
+          {
+            "name": "idx_daily_checkins_date",
+            "columns": ["checkin_date"]
+          },
+          {
+            "name": "idx_daily_checkins_user_date",
+            "columns": ["user_id", "checkin_date"],
+            "unique": true
+          }
+        ]
+      }
+    ],
+    "curds": [
+      {
+        "name": "daily_checkin_crud",
+        "model_name": "DailyCheckin",
+        "operations": ["create", "read"]
+      }
+    ]
+  },
+
+  "frontend": {
+    "components": [
+      {
+        "name": "CheckinButton",
+        "description": "Daily check-in button",
+        "props": [
+          {
+            "name": "isCheckedIn",
+            "type": "boolean",
+            "required": true
+          },
+          {
+            "name": "onCheckin",
+            "type": "() => void",
+            "required": true
+          },
+          {
+            "name": "isLoading",
+            "type": "boolean",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "CheckinCalendar",
+        "description": "Calendar showing check-in history",
+        "props": [
+          {
+            "name": "checkinDates",
+            "type": "Date[]",
+            "required": true
+          },
+          {
+            "name": "currentMonth",
+            "type": "Date",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "StreakDisplay",
+        "description": "Display current check-in streak",
+        "props": [
+          {
+            "name": "streak",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "maxStreak",
+            "type": "number",
+            "required": false
+          }
+        ]
+      }
+    ],
+    "hooks": [
+      {
+        "name": "useCheckin",
+        "description": "Check in for the day",
+        "returns": "{ checkin: () => Promise<CheckinResult>; isLoading: boolean }"
+      },
+      {
+        "name": "useCheckinStatus",
+        "description": "Get today's check-in status",
+        "returns": "{ isCheckedIn: boolean; loading: boolean }"
+      },
+      {
+        "name": "useCheckinStreak",
+        "description": "Get check-in streak",
+        "returns": "{ streak: number; maxStreak: number; loading: boolean }"
+      },
+      {
+        "name": "useCheckinHistory",
+        "description": "Get check-in history",
+        "returns": "{ history: CheckinEntry[]; loading: boolean }"
+      }
+    ],
+    "pages": [
+      {
+        "name": "CheckinPage",
+        "route": "/checkin",
+        "description": "Daily check-in page"
+      }
+    ]
+  },
+
+  "database": {
+    "tables": [
+      {
+        "name": "daily_checkins",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "checkin_date",
+            "type": "date",
+            "nullable": false
+          },
+          {
+            "name": "points_earned",
+            "type": "integer",
+            "nullable": false,
+            "default": "0"
+          },
+          {
+            "name": "reward_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_daily_checkins_user",
+            "columns": ["user_id"]
+          },
+          {
+            "name": "idx_daily_checkins_date",
+            "columns": ["checkin_date"]
+          },
+          {
+            "name": "idx_daily_checkins_user_date",
+            "columns": ["user_id", "checkin_date"],
+            "unique": true
+          }
+        ]
+      }
+    ],
+    "migrations": [
+      {
+        "name": "create_daily_checkins_table",
+        "sql": "CREATE TABLE IF NOT EXISTS daily_checkins (...)"
+      }
+    ]
+  },
+
+  "integration": {
+    "steps": [
+      "1. Run database migration to create 'daily_checkins' table",
+      "2. Add backend models in backend/app/db/models/checkin.py",
+      "3. Add CRUD operations in backend/app/cruds/checkin_crud.py",
+      "4. Register API routes in backend/app/api/router.py",
+      "5. Create frontend components in frontend/src/components/checkin/",
+      "6. Add API service in frontend/src/services/checkin.ts",
+      "7. Integrate check-in button into app navigation or home page",
+      "8. Set up streak calculation logic",
+      "9. Test check-in flow"
+    ],
+    "config_needed": [
+      "Configure points per check-in",
+      "Set up streak bonus multipliers",
+      "Configure weekly/monthly reward milestones"
+    ]
+  }
+}

@@ -1,0 +1,362 @@
+{
+  "command": "/report-m",
+  "feature_name": "report_system",
+  "description": "Content reporting system for user-submitted reports",
+
+  "backend": {
+    "routes": [
+      {
+        "method": "POST",
+        "path": "/reports",
+        "handler_name": "create_report",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/reports",
+        "handler_name": "get_user_reports",
+        "auth_required": true,
+        "pagination": "cursor"
+      },
+      {
+        "method": "GET",
+        "path": "/reports/{id}",
+        "handler_name": "get_report",
+        "auth_required": true
+      },
+      {
+        "method": "POST",
+        "path": "/reports/{id}/cancel",
+        "handler_name": "cancel_report",
+        "auth_required": true
+      }
+    ],
+    "services": [
+      {
+        "name": "ReportService",
+        "description": "Business logic for report operations",
+        "methods": [
+          {
+            "name": "submit_report",
+            "description": "Submit a content report",
+            "async": true
+          },
+          {
+            "name": "get_user_reports",
+            "description": "Get user's submitted reports",
+            "async": true
+          },
+          {
+            "name": "cancel_report",
+            "description": "Cancel a pending report",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "models": [
+      {
+        "name": "Report",
+        "table_name": "reports",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "reporter_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id",
+            "index": true
+          },
+          {
+            "name": "target_type",
+            "type": "string",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "target_id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "reason_type",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "description",
+            "type": "text",
+            "nullable": true
+          },
+          {
+            "name": "status",
+            "type": "string",
+            "nullable": false,
+            "default": "'pending'"
+          },
+          {
+            "name": "reviewed_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "reviewed_at",
+            "type": "datetime",
+            "nullable": true
+          },
+          {
+            "name": "resolution",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "updated_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_reports_reporter",
+            "columns": ["reporter_id"]
+          },
+          {
+            "name": "idx_reports_target",
+            "columns": ["target_type", "target_id"]
+          },
+          {
+            "name": "idx_reports_status",
+            "columns": ["status"]
+          }
+        ]
+      }
+    ],
+    "curds": [
+      {
+        "name": "report_crud",
+        "model_name": "Report",
+        "operations": ["create", "read", "update"]
+      }
+    ]
+  },
+
+  "frontend": {
+    "components": [
+      {
+        "name": "ReportButton",
+        "description": "Button to report content",
+        "props": [
+          {
+            "name": "targetType",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "targetId",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "onReport",
+            "type": "() => void",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "ReportForm",
+        "description": "Form to submit a report",
+        "props": [
+          {
+            "name": "targetType",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "targetId",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "onSubmit",
+            "type": "(reason: string, description: string) => void",
+            "required": true
+          },
+          {
+            "name": "onCancel",
+            "type": "() => void",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "ReportList",
+        "description": "List of user's reports",
+        "props": [
+          {
+            "name": "reports",
+            "type": "Report[]",
+            "required": true
+          }
+        ]
+      }
+    ],
+    "hooks": [
+      {
+        "name": "useSubmitReport",
+        "description": "Submit a report",
+        "returns": "{ submit: (targetType: string, targetId: string, reason: string, description?: string) => Promise<void>; isLoading: boolean }"
+      },
+      {
+        "name": "useUserReports",
+        "description": "Get user's submitted reports",
+        "returns": "{ reports: Report[]; loading: boolean; refresh: () => void }"
+      }
+    ],
+    "pages": [
+      {
+        "name": "MyReportsPage",
+        "route": "/settings/reports",
+        "description": "User's submitted reports page"
+      }
+    ]
+  },
+
+  "database": {
+    "tables": [
+      {
+        "name": "reports",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "reporter_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "target_type",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "target_id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "reason_type",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "description",
+            "type": "text",
+            "nullable": true
+          },
+          {
+            "name": "status",
+            "type": "string",
+            "nullable": false,
+            "default": "'pending'"
+          },
+          {
+            "name": "reviewed_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "reviewed_at",
+            "type": "datetime",
+            "nullable": true
+          },
+          {
+            "name": "resolution",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "updated_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_reports_reporter",
+            "columns": ["reporter_id"]
+          },
+          {
+            "name": "idx_reports_target",
+            "columns": ["target_type", "target_id"]
+          },
+          {
+            "name": "idx_reports_status",
+            "columns": ["status"]
+          }
+        ]
+      }
+    ],
+    "migrations": [
+      {
+        "name": "create_reports_table",
+        "sql": "CREATE TABLE IF NOT EXISTS reports (...)"
+      }
+    ]
+  },
+
+  "integration": {
+    "steps": [
+      "1. Run database migration to create 'reports' table",
+      "2. Add backend models in backend/app/db/models/report.py",
+      "3. Add CRUD operations in backend/app/cruds/report_crud.py",
+      "4. Register API routes in backend/app/api/router.py",
+      "5. Create frontend components in frontend/src/components/report/",
+      "6. Add API service in frontend/src/services/report.ts",
+      "7. Integrate ReportButton into posts, comments, and user profiles",
+      "8. Test report submission flow"
+    ],
+    "config_needed": [
+      "Configure report reason types",
+      "Set up notification to moderators when report submitted",
+      "Configure auto-moderation rules for certain report types"
+    ]
+  }
+}

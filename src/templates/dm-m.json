@@ -1,0 +1,583 @@
+{
+  "command": "/dm-m",
+  "feature_name": "dm_system",
+  "description": "Direct messaging system for private user-to-user communication",
+
+  "backend": {
+    "routes": [
+      {
+        "method": "POST",
+        "path": "/conversations",
+        "handler_name": "create_conversation",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/conversations",
+        "handler_name": "get_conversations",
+        "auth_required": true,
+        "pagination": "cursor"
+      },
+      {
+        "method": "GET",
+        "path": "/conversations/{id}",
+        "handler_name": "get_conversation",
+        "auth_required": true
+      },
+      {
+        "method": "DELETE",
+        "path": "/conversations/{id}",
+        "handler_name": "delete_conversation",
+        "auth_required": true
+      },
+      {
+        "method": "POST",
+        "path": "/messages",
+        "handler_name": "send_message",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/messages/{conversation_id}",
+        "handler_name": "get_messages",
+        "auth_required": true,
+        "pagination": "cursor"
+      },
+      {
+        "method": "PATCH",
+        "path": "/messages/{id}/read",
+        "handler_name": "mark_message_read",
+        "auth_required": true
+      },
+      {
+        "method": "DELETE",
+        "path": "/messages/{id}",
+        "handler_name": "delete_message",
+        "auth_required": true
+      }
+    ],
+    "services": [
+      {
+        "name": "ConversationService",
+        "description": "Business logic for conversations",
+        "methods": [
+          {
+            "name": "get_or_create_conversation",
+            "description": "Get existing or create new conversation",
+            "async": true
+          },
+          {
+            "name": "get_user_conversations",
+            "description": "Get all conversations for user",
+            "async": true
+          },
+          {
+            "name": "mark_conversation_read",
+            "description": "Mark all messages in conversation as read",
+            "async": true
+          }
+        ]
+      },
+      {
+        "name": "MessageService",
+        "description": "Business logic for messages",
+        "methods": [
+          {
+            "name": "send_message",
+            "description": "Send message to conversation",
+            "async": true
+          },
+          {
+            "name": "get_conversation_messages",
+            "description": "Get messages for conversation with pagination",
+            "async": true
+          },
+          {
+            "name": "mark_as_read",
+            "description": "Mark message as read",
+            "async": true
+          },
+          {
+            "name": "delete_message",
+            "description": "Delete message (soft delete)",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "models": [
+      {
+        "name": "Conversation",
+        "table_name": "conversations",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          },
+          {
+            "name": "updated_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_conversations_created",
+            "columns": ["created_at"]
+          }
+        ]
+      },
+      {
+        "name": "ConversationParticipant",
+        "table_name": "conversation_participants",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "conversation_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "conversations.id",
+            "index": true
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id",
+            "index": true
+          },
+          {
+            "name": "last_read_at",
+            "type": "datetime",
+            "nullable": true
+          },
+          {
+            "name": "joined_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_conversation_participants_conv",
+            "columns": ["conversation_id"]
+          },
+          {
+            "name": "idx_conversation_participants_user",
+            "columns": ["user_id"]
+          }
+        ]
+      },
+      {
+        "name": "Message",
+        "table_name": "messages",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "conversation_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "conversations.id",
+            "index": true
+          },
+          {
+            "name": "sender_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id",
+            "index": true
+          },
+          {
+            "name": "content",
+            "type": "text",
+            "nullable": false
+          },
+          {
+            "name": "is_read",
+            "type": "boolean",
+            "nullable": false,
+            "default": "false"
+          },
+          {
+            "name": "read_at",
+            "type": "datetime",
+            "nullable": true
+          },
+          {
+            "name": "is_deleted",
+            "type": "boolean",
+            "nullable": false,
+            "default": "false"
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_messages_conversation",
+            "columns": ["conversation_id"]
+          },
+          {
+            "name": "idx_messages_sender",
+            "columns": ["sender_id"]
+          },
+          {
+            "name": "idx_messages_created",
+            "columns": ["created_at"]
+          }
+        ]
+      }
+    ],
+    "curds": [
+      {
+        "name": "conversation_crud",
+        "model_name": "Conversation",
+        "operations": ["create", "read", "delete"]
+      },
+      {
+        "name": "conversation_participant_crud",
+        "model_name": "ConversationParticipant",
+        "operations": ["create", "read", "update"]
+      },
+      {
+        "name": "message_crud",
+        "model_name": "Message",
+        "operations": ["create", "read", "update", "delete"]
+      }
+    ]
+  },
+
+  "frontend": {
+    "components": [
+      {
+        "name": "ConversationList",
+        "description": "List of user's conversations",
+        "props": [
+          {
+            "name": "onSelect",
+            "type": "(conversation: Conversation) => void",
+            "required": true
+          },
+          {
+            "name": "selectedId",
+            "type": "string",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "ConversationView",
+        "description": "View for a single conversation with messages",
+        "props": [
+          {
+            "name": "conversationId",
+            "type": "string",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "MessageBubble",
+        "description": "Single message bubble",
+        "props": [
+          {
+            "name": "message",
+            "type": "Message",
+            "required": true
+          },
+          {
+            "name": "isOwn",
+            "type": "boolean",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "MessageInput",
+        "description": "Input for sending messages",
+        "props": [
+          {
+            "name": "onSend",
+            "type": "(content: string) => void",
+            "required": true
+          },
+          {
+            "name": "disabled",
+            "type": "boolean",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "NewMessageDialog",
+        "description": "Dialog to start new conversation",
+        "props": [
+          {
+            "name": "onSelectUser",
+            "type": "(user: User) => void",
+            "required": true
+          },
+          {
+            "name": "onClose",
+            "type": "() => void",
+            "required": false
+          }
+        ]
+      }
+    ],
+    "hooks": [
+      {
+        "name": "useConversations",
+        "description": "Get user's conversations",
+        "returns": "{ conversations: Conversation[]; loading: boolean; refresh: () => void }"
+      },
+      {
+        "name": "useMessages",
+        "description": "Get messages for conversation",
+        "returns": "{ messages: Message[]; loading: boolean; loadMore: () => void }"
+      },
+      {
+        "name": "useSendMessage",
+        "description": "Send a message",
+        "returns": "{ send: (content: string) => Promise<void>; isLoading: boolean }"
+      },
+      {
+        "name": "useMarkAsRead",
+        "description": "Mark message as read",
+        "returns": "{ markRead: (messageId: string) => Promise<void> }"
+      },
+      {
+        "name": "useUnreadCount",
+        "description": "Get total unread messages count",
+        "returns": "{ count: number; loading: boolean }"
+      }
+    ],
+    "pages": [
+      {
+        "name": "MessagesPage",
+        "route": "/messages",
+        "description": "Main messages page with conversation list"
+      },
+      {
+        "name": "ConversationPage",
+        "route": "/messages/{conversationId}",
+        "description": "Single conversation page"
+      }
+    ]
+  },
+
+  "database": {
+    "tables": [
+      {
+        "name": "conversations",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "updated_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_conversations_created",
+            "columns": ["created_at"]
+          }
+        ]
+      },
+      {
+        "name": "conversation_participants",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "conversation_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "conversations.id"
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "last_read_at",
+            "type": "datetime",
+            "nullable": true
+          },
+          {
+            "name": "joined_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_conversation_participants_conv",
+            "columns": ["conversation_id"]
+          },
+          {
+            "name": "idx_conversation_participants_user",
+            "columns": ["user_id"]
+          }
+        ]
+      },
+      {
+        "name": "messages",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "conversation_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "conversations.id"
+          },
+          {
+            "name": "sender_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "content",
+            "type": "text",
+            "nullable": false
+          },
+          {
+            "name": "is_read",
+            "type": "boolean",
+            "nullable": false,
+            "default": "false"
+          },
+          {
+            "name": "read_at",
+            "type": "datetime",
+            "nullable": true
+          },
+          {
+            "name": "is_deleted",
+            "type": "boolean",
+            "nullable": false,
+            "default": "false"
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_messages_conversation",
+            "columns": ["conversation_id"]
+          },
+          {
+            "name": "idx_messages_sender",
+            "columns": ["sender_id"]
+          },
+          {
+            "name": "idx_messages_created",
+            "columns": ["created_at"]
+          }
+        ]
+      }
+    ],
+    "migrations": [
+      {
+        "name": "create_conversations_table",
+        "sql": "CREATE TABLE IF NOT EXISTS conversations (...)"
+      },
+      {
+        "name": "create_conversation_participants_table",
+        "sql": "CREATE TABLE IF NOT EXISTS conversation_participants (...)"
+      },
+      {
+        "name": "create_messages_table",
+        "sql": "CREATE TABLE IF NOT EXISTS messages (...)"
+      }
+    ]
+  },
+
+  "integration": {
+    "steps": [
+      "1. Run database migration to create tables",
+      "2. Add backend models in backend/app/db/models/dm.py",
+      "3. Add CRUD operations in backend/app/cruds/dm_crud.py",
+      "4. Register API routes in backend/app/api/router.py",
+      "5. Optionally set up WebSocket for real-time messaging",
+      "6. Create frontend components in frontend/src/components/dm/",
+      "7. Add API service in frontend/src/services/dm.ts",
+      "8. Test message sending and receiving"
+    ],
+    "config_needed": [
+      "Set up WebSocket for real-time messaging (optional)",
+      "Configure message retention policy",
+      "Set up block check before sending messages",
+      "Configure max message length"
+    ]
+  }
+}

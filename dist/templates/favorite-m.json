@@ -1,0 +1,527 @@
+{
+  "command": "/favorite-m",
+  "feature_name": "favorite_system",
+  "description": "Content favoriting with collection folders. Note: Basic favoriting is in /interaction-m. This module adds collection/folder organization.",
+  "extends": "interaction-m",
+  "note": "Core 'favorite' interaction is in interaction-m, this module adds collection management",
+
+  "backend": {
+    "routes": [
+      {
+        "method": "POST",
+        "path": "/favorites",
+        "handler_name": "create_favorite",
+        "auth_required": true
+      },
+      {
+        "method": "DELETE",
+        "path": "/favorites/{id}",
+        "handler_name": "delete_favorite",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/favorites",
+        "handler_name": "get_user_favorites",
+        "auth_required": true,
+        "pagination": "cursor"
+      },
+      {
+        "method": "GET",
+        "path": "/favorites/check/{target_type}/{target_id}",
+        "handler_name": "check_favorited",
+        "auth_required": true
+      },
+      {
+        "method": "POST",
+        "path": "/favorite-collections",
+        "handler_name": "create_collection",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/favorite-collections",
+        "handler_name": "get_user_collections",
+        "auth_required": true,
+        "pagination": "cursor"
+      },
+      {
+        "method": "PATCH",
+        "path": "/favorite-collections/{id}",
+        "handler_name": "update_collection",
+        "auth_required": true
+      },
+      {
+        "method": "DELETE",
+        "path": "/favorite-collections/{id}",
+        "handler_name": "delete_collection",
+        "auth_required": true
+      }
+    ],
+    "services": [
+      {
+        "name": "FavoriteService",
+        "description": "Business logic for favorite operations",
+        "methods": [
+          {
+            "name": "add_to_favorites",
+            "description": "Add item to favorites or a specific collection",
+            "async": true
+          },
+          {
+            "name": "remove_from_favorites",
+            "description": "Remove item from favorites",
+            "async": true
+          },
+          {
+            "name": "get_user_favorites_with_collection",
+            "description": "Get all favorites grouped by collection",
+            "async": true
+          },
+          {
+            "name": "move_to_collection",
+            "description": "Move favorite item to different collection",
+            "async": true
+          }
+        ]
+      },
+      {
+        "name": "FavoriteCollectionService",
+        "description": "Business logic for favorite collections",
+        "methods": [
+          {
+            "name": "create_collection",
+            "description": "Create new favorite collection",
+            "async": true
+          },
+          {
+            "name": "get_user_collections",
+            "description": "Get all collections for user with item counts",
+            "async": true
+          },
+          {
+            "name": "is_collection_name_unique",
+            "description": "Check if collection name is unique for user",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "models": [
+      {
+        "name": "Favorite",
+        "table_name": "favorites",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id",
+            "index": true
+          },
+          {
+            "name": "collection_id",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "favorite_collections.id",
+            "index": true
+          },
+          {
+            "name": "target_type",
+            "type": "string",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "target_id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "note",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_favorites_user_collection",
+            "columns": ["user_id", "collection_id"]
+          },
+          {
+            "name": "idx_favorites_user_target",
+            "columns": ["user_id", "target_type", "target_id"],
+            "unique": true
+          }
+        ]
+      },
+      {
+        "name": "FavoriteCollection",
+        "table_name": "favorite_collections",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id",
+            "index": true
+          },
+          {
+            "name": "name",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "cover_url",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "is_public",
+            "type": "boolean",
+            "nullable": false,
+            "default": "false"
+          },
+          {
+            "name": "item_count",
+            "type": "integer",
+            "nullable": false,
+            "default": "0"
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          },
+          {
+            "name": "updated_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "updated_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_favorite_collections_user",
+            "columns": ["user_id"]
+          },
+          {
+            "name": "idx_favorite_collections_user_name",
+            "columns": ["user_id", "name"],
+            "unique": true
+          }
+        ]
+      }
+    ],
+    "curds": [
+      {
+        "name": "favorite_crud",
+        "model_name": "Favorite",
+        "operations": ["create", "read", "delete"]
+      },
+      {
+        "name": "favorite_collection_crud",
+        "model_name": "FavoriteCollection",
+        "operations": ["create", "read", "update", "delete"]
+      }
+    ]
+  },
+
+  "frontend": {
+    "components": [
+      {
+        "name": "FavoriteButton",
+        "description": "Add/remove favorite button with counter",
+        "props": [
+          {
+            "name": "targetType",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "targetId",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "showCount",
+            "type": "boolean",
+            "required": false
+          },
+          {
+            "name": "size",
+            "type": "'small' | 'medium' | 'large'",
+            "required": false
+          },
+          {
+            "name": "onFavoriteChange",
+            "type": "(isFavorited: boolean) => void",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "FavoriteCollectionCard",
+        "description": "Display favorite collection with cover and count",
+        "props": [
+          {
+            "name": "collection",
+            "type": "FavoriteCollection",
+            "required": true
+          },
+          {
+            "name": "onClick",
+            "type": "() => void",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "FavoriteList",
+        "description": "List of favorited items with filtering",
+        "props": [
+          {
+            "name": "collectionId",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "targetType",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "onRemove",
+            "type": "(favorite: Favorite) => void",
+            "required": false
+          }
+        ]
+      }
+    ],
+    "hooks": [
+      {
+        "name": "useFavorite",
+        "description": "Check and manage favorite status for a target",
+        "returns": "{ isFavorited: boolean; isLoading: boolean; toggle: () => void }"
+      },
+      {
+        "name": "useFavorites",
+        "description": "Get user's favorites list",
+        "returns": "{ favorites: Favorite[]; loading: boolean; refresh: () => void }"
+      },
+      {
+        "name": "useFavoriteCollections",
+        "description": "Get user's favorite collections",
+        "returns": "{ collections: FavoriteCollection[]; loading: boolean; create: (name: string) => void }"
+      }
+    ],
+    "pages": [
+      {
+        "name": "FavoritesPage",
+        "route": "/favorites",
+        "description": "User's favorites page showing all collections"
+      },
+      {
+        "name": "CollectionDetailPage",
+        "route": "/favorites/collection/{id}",
+        "description": "Detail page for a specific collection"
+      }
+    ]
+  },
+
+  "database": {
+    "tables": [
+      {
+        "name": "favorites",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "collection_id",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "favorite_collections.id"
+          },
+          {
+            "name": "target_type",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "target_id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "note",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_favorites_user_collection",
+            "columns": ["user_id", "collection_id"]
+          },
+          {
+            "name": "idx_favorites_user_target",
+            "columns": ["user_id", "target_type", "target_id"],
+            "unique": true
+          }
+        ]
+      },
+      {
+        "name": "favorite_collections",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "name",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "cover_url",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "is_public",
+            "type": "boolean",
+            "nullable": false,
+            "default": "false"
+          },
+          {
+            "name": "item_count",
+            "type": "integer",
+            "nullable": false,
+            "default": "0"
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "updated_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_favorite_collections_user",
+            "columns": ["user_id"]
+          },
+          {
+            "name": "idx_favorite_collections_user_name",
+            "columns": ["user_id", "name"],
+            "unique": true
+          }
+        ]
+      }
+    ],
+    "migrations": [
+      {
+        "name": "create_favorite_collections_table",
+        "sql": "CREATE TABLE IF NOT EXISTS favorite_collections (...)"
+      },
+      {
+        "name": "create_favorites_table",
+        "sql": "CREATE TABLE IF NOT EXISTS favorites (...)"
+      }
+    ]
+  },
+
+  "integration": {
+    "steps": [
+      "1. Run database migration to create tables",
+      "2. Add backend models in backend/app/db/models/favorite.py",
+      "3. Add CRUD operations in backend/app/cruds/favorite_crud.py",
+      "4. Register API routes in backend/app/api/router.py",
+      "5. Create frontend components in frontend/src/components/favorites/",
+      "6. Add API service in frontend/src/services/favorites.ts",
+      "7. Integrate FavoriteButton component into content items",
+      "8. Test favorite/add to collection functionality"
+    ],
+    "config_needed": [
+      "Ensure users table exists for foreign key relationship",
+      "Configure authentication middleware for protected routes",
+      "Set up storage for collection cover images"
+    ]
+  }
+}

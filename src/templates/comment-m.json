@@ -1,0 +1,368 @@
+{
+  "command": "/comment-m",
+  "feature_name": "comment_system",
+  "description": "Multi-level comment system with nesting support and reply functionality",
+
+  "backend": {
+    "routes": [
+      {
+        "method": "POST",
+        "path": "/comments",
+        "handler_name": "create_comment",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/comments/{id}",
+        "handler_name": "get_comment",
+        "auth_required": false
+      },
+      {
+        "method": "GET",
+        "path": "/comments/{target_type}/{target_id}",
+        "handler_name": "get_comments_by_target",
+        "auth_required": false,
+        "pagination": "cursor"
+      },
+      {
+        "method": "PATCH",
+        "path": "/comments/{id}",
+        "handler_name": "update_comment",
+        "auth_required": true
+      },
+      {
+        "method": "DELETE",
+        "path": "/comments/{id}",
+        "handler_name": "delete_comment",
+        "auth_required": true
+      }
+    ],
+    "services": [
+      {
+        "name": "CommentService",
+        "description": "Business logic for comment operations",
+        "methods": [
+          {
+            "name": "build_comment_tree",
+            "description": "Build hierarchical tree from flat comment list",
+            "async": true
+          },
+          {
+            "name": "get_comment_count",
+            "description": "Get total comment count for a target",
+            "async": true
+          },
+          {
+            "name": "validate_comment_permission",
+            "description": "Check if user can modify/delete comment",
+            "async": false
+          }
+        ]
+      }
+    ],
+    "models": [
+      {
+        "name": "Comment",
+        "table_name": "comments",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "content",
+            "type": "text",
+            "nullable": false
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "target_type",
+            "type": "string",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "target_id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "parent_id",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "comments.id",
+            "index": true
+          },
+          {
+            "name": "reply_count",
+            "type": "integer",
+            "nullable": false,
+            "default": "0"
+          },
+          {
+            "name": "is_edited",
+            "type": "boolean",
+            "nullable": false,
+            "default": "false"
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          },
+          {
+            "name": "updated_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "updated_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_comments_target",
+            "columns": ["target_type", "target_id"]
+          },
+          {
+            "name": "idx_comments_parent",
+            "columns": ["parent_id"]
+          }
+        ]
+      }
+    ],
+    "curds": [
+      {
+        "name": "comment_crud",
+        "model_name": "Comment",
+        "operations": ["create", "read", "update", "delete"]
+      }
+    ]
+  },
+
+  "frontend": {
+    "components": [
+      {
+        "name": "CommentList",
+        "description": "Displays list of comments in hierarchical tree structure",
+        "props": [
+          {
+            "name": "targetType",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "targetId",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "maxDepth",
+            "type": "number",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "CommentItem",
+        "description": "Single comment display with reply form",
+        "props": [
+          {
+            "name": "comment",
+            "type": "Comment",
+            "required": true
+          },
+          {
+            "name": "depth",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "onReply",
+            "type": "() => void",
+            "required": false
+          },
+          {
+            "name": "onEdit",
+            "type": "() => void",
+            "required": false
+          },
+          {
+            "name": "onDelete",
+            "type": "() => void",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "CommentInput",
+        "description": "Input form for creating/editing comments",
+        "props": [
+          {
+            "name": "onSubmit",
+            "type": "(content: string) => void",
+            "required": true
+          },
+          {
+            "name": "placeholder",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "autoFocus",
+            "type": "boolean",
+            "required": false
+          }
+        ]
+      }
+    ],
+    "hooks": [
+      {
+        "name": "useComments",
+        "description": "Fetch and manage comments for a target",
+        "returns": "CommentState"
+      },
+      {
+        "name": "useCreateComment",
+        "description": "Create new comment",
+        "returns": "CreateCommentState"
+      },
+      {
+        "name": "useUpdateComment",
+        "description": "Update existing comment",
+        "returns": "UpdateCommentState"
+      },
+      {
+        "name": "useDeleteComment",
+        "description": "Delete comment",
+        "returns": "DeleteCommentState"
+      }
+    ],
+    "pages": [
+      {
+        "name": "CommentsPage",
+        "route": "/comments/{targetType}/{targetId}",
+        "description": "Page displaying all comments for a target"
+      }
+    ]
+  },
+
+  "database": {
+    "tables": [
+      {
+        "name": "comments",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "content",
+            "type": "text",
+            "nullable": false
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "target_type",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "target_id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "parent_id",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "comments.id"
+          },
+          {
+            "name": "reply_count",
+            "type": "integer",
+            "nullable": false,
+            "default": "0"
+          },
+          {
+            "name": "is_edited",
+            "type": "boolean",
+            "nullable": false,
+            "default": "false"
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "updated_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_comments_target",
+            "columns": ["target_type", "target_id"]
+          },
+          {
+            "name": "idx_comments_parent",
+            "columns": ["parent_id"]
+          }
+        ]
+      }
+    ],
+    "migrations": [
+      {
+        "name": "create_comments_table",
+        "sql": "CREATE TABLE IF NOT EXISTS comments (...)"
+      }
+    ]
+  },
+
+  "integration": {
+    "steps": [
+      "1. Run database migration to create 'comments' table",
+      "2. Add backend models in backend/app/db/models/comment.py",
+      "3. Add CRUD operations in backend/app/cruds/comment_crud.py",
+      "4. Register API routes in backend/app/api/router.py",
+      "5. Create frontend components in frontend/src/components/comments/",
+      "6. Add API service in frontend/src/services/comments.ts",
+      "7. Integrate CommentList component into pages where comments are needed",
+      "8. Test all comment operations (create, read, update, delete)"
+    ],
+    "config_needed": [
+      "Ensure users table exists and has proper foreign key relationship",
+      "Configure authentication middleware for protected routes",
+      "Set up rate limiting to prevent spam comments"
+    ]
+  }
+}

@@ -1,0 +1,661 @@
+{
+  "command": "/note-m",
+  "feature_name": "note_system",
+  "description": "Personal note-taking system for users",
+
+  "backend": {
+    "routes": [
+      {
+        "method": "POST",
+        "path": "/notes",
+        "handler_name": "create_note",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/notes",
+        "handler_name": "get_notes",
+        "auth_required": true,
+        "pagination": "cursor"
+      },
+      {
+        "method": "GET",
+        "path": "/notes/{id}",
+        "handler_name": "get_note",
+        "auth_required": true
+      },
+      {
+        "method": "PATCH",
+        "path": "/notes/{id}",
+        "handler_name": "update_note",
+        "auth_required": true
+      },
+      {
+        "method": "DELETE",
+        "path": "/notes/{id}",
+        "handler_name": "delete_note",
+        "auth_required": true
+      },
+      {
+        "method": "POST",
+        "path": "/notes/{id}/tags",
+        "handler_name": "add_note_tag",
+        "auth_required": true
+      },
+      {
+        "method": "DELETE",
+        "path": "/notes/{id}/tags/{tag}",
+        "handler_name": "remove_note_tag",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/notes/tags",
+        "handler_name": "get_note_tags",
+        "auth_required": true
+      }
+    ],
+    "services": [
+      {
+        "name": "NoteService",
+        "description": "Business logic for note operations",
+        "methods": [
+          {
+            "name": "create_note",
+            "description": "Create new note",
+            "async": true
+          },
+          {
+            "name": "update_note",
+            "description": "Update existing note",
+            "async": true
+          },
+          {
+            "name": "delete_note",
+            "description": "Delete note (soft delete)",
+            "async": true
+          },
+          {
+            "name": "get_user_notes",
+            "description": "Get all notes for user with filtering",
+            "async": true
+          },
+          {
+            "name": "search_notes",
+            "description": "Search notes by title or content",
+            "async": true
+          },
+          {
+            "name": "add_tag",
+            "description": "Add tag to note",
+            "async": true
+          },
+          {
+            "name": "remove_tag",
+            "description": "Remove tag from note",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "models": [
+      {
+        "name": "Note",
+        "table_name": "notes",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id",
+            "index": true
+          },
+          {
+            "name": "title",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "content",
+            "type": "text",
+            "nullable": true
+          },
+          {
+            "name": "is_pinned",
+            "type": "boolean",
+            "nullable": false,
+            "default": "false"
+          },
+          {
+            "name": "is_archived",
+            "type": "boolean",
+            "nullable": false,
+            "default": "false"
+          },
+          {
+            "name": "color",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "view_count",
+            "type": "integer",
+            "nullable": false,
+            "default": "0"
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          },
+          {
+            "name": "updated_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "updated_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_notes_user",
+            "columns": ["user_id"]
+          },
+          {
+            "name": "idx_notes_user_pinned",
+            "columns": ["user_id", "is_pinned"]
+          },
+          {
+            "name": "idx_notes_user_archived",
+            "columns": ["user_id", "is_archived"]
+          }
+        ]
+      },
+      {
+        "name": "NoteTag",
+        "table_name": "note_tags",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id",
+            "index": true
+          },
+          {
+            "name": "name",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "color",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_note_tags_user",
+            "columns": ["user_id"]
+          },
+          {
+            "name": "idx_note_tags_user_name",
+            "columns": ["user_id", "name"],
+            "unique": true
+          }
+        ]
+      },
+      {
+        "name": "NoteTagRelation",
+        "table_name": "note_tag_relations",
+        "fields": [
+          {
+            "name": "note_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "notes.id",
+            "index": true
+          },
+          {
+            "name": "note_tag_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "note_tags.id",
+            "index": true
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_note_tag_relations_pair",
+            "columns": ["note_id", "note_tag_id"],
+            "unique": true
+          }
+        ]
+      }
+    ],
+    "curds": [
+      {
+        "name": "note_crud",
+        "model_name": "Note",
+        "operations": ["create", "read", "update", "delete"]
+      },
+      {
+        "name": "note_tag_crud",
+        "model_name": "NoteTag",
+        "operations": ["create", "read", "delete"]
+      },
+      {
+        "name": "note_tag_relation_crud",
+        "model_name": "NoteTagRelation",
+        "operations": ["create", "delete"]
+      }
+    ]
+  },
+
+  "frontend": {
+    "components": [
+      {
+        "name": "NoteEditor",
+        "description": "Rich note editor",
+        "props": [
+          {
+            "name": "note",
+            "type": "Note",
+            "required": false
+          },
+          {
+            "name": "onSave",
+            "type": "(data: NoteData) => void",
+            "required": true
+          },
+          {
+            "name": "onCancel",
+            "type": "() => void",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "NoteCard",
+        "description": "Note preview card",
+        "props": [
+          {
+            "name": "note",
+            "type": "Note",
+            "required": true
+          },
+          {
+            "name": "onClick",
+            "type": "() => void",
+            "required": true
+          },
+          {
+            "name": "onPin",
+            "type": "() => void",
+            "required": false
+          },
+          {
+            "name": "onDelete",
+            "type": "() => void",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "NoteList",
+        "description": "List of notes with filtering",
+        "props": [
+          {
+            "name": "notes",
+            "type": "Note[]",
+            "required": true
+          },
+          {
+            "name": "onSelect",
+            "type": "(note: Note) => void",
+            "required": true
+          },
+          {
+            "name": "onDelete",
+            "type": "(note: Note) => void",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "NoteTagFilter",
+        "description": "Filter notes by tag",
+        "props": [
+          {
+            "name": "tags",
+            "type": "NoteTag[]",
+            "required": true
+          },
+          {
+            "name": "selectedTag",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "onSelect",
+            "type": "(tag: string | null) => void",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "NoteSidebar",
+        "description": "Sidebar with note list and tags",
+        "props": [
+          {
+            "name": "notes",
+            "type": "Note[]",
+            "required": true
+          },
+          {
+            "name": "tags",
+            "type": "NoteTag[]",
+            "required": true
+          },
+          {
+            "name": "selectedNote",
+            "type": "Note",
+            "required": false
+          },
+          {
+            "name": "onSelectNote",
+            "type": "(note: Note) => void",
+            "required": true
+          },
+          {
+            "name": "onCreateNote",
+            "type": "() => void",
+            "required": true
+          }
+        ]
+      }
+    ],
+    "hooks": [
+      {
+        "name": "useNotes",
+        "description": "Get user's notes",
+        "returns": "{ notes: Note[]; loading: boolean; refresh: () => void }"
+      },
+      {
+        "name": "useNote",
+        "description": "Get single note",
+        "returns": "{ note: Note | null; loading: boolean }"
+      },
+      {
+        "name": "useCreateNote",
+        "description": "Create new note",
+        "returns": "{ create: (data: NoteData) => Promise<Note>; isLoading: boolean }"
+      },
+      {
+        "name": "useUpdateNote",
+        "description": "Update note",
+        "returns": "{ update: (id: string, data: Partial<NoteData>) => Promise<Note>; isLoading: boolean }"
+      },
+      {
+        "name": "useDeleteNote",
+        "description": "Delete note",
+        "returns": "{ remove: (id: string) => Promise<void>; isLoading: boolean }"
+      },
+      {
+        "name": "useNoteTags",
+        "description": "Get user's note tags",
+        "returns": "{ tags: NoteTag[]; loading: boolean }"
+      },
+      {
+        "name": "useSearchNotes",
+        "description": "Search notes",
+        "returns": "{ results: Note[]; search: (query: string) => void; loading: boolean }"
+      }
+    ],
+    "pages": [
+      {
+        "name": "NotesPage",
+        "route": "/notes",
+        "description": "Main notes page"
+      },
+      {
+        "name": "NoteEditorPage",
+        "route": "/notes/{id}/edit",
+        "description": "Note editing page"
+      }
+    ]
+  },
+
+  "database": {
+    "tables": [
+      {
+        "name": "notes",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "title",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "content",
+            "type": "text",
+            "nullable": true
+          },
+          {
+            "name": "is_pinned",
+            "type": "boolean",
+            "nullable": false,
+            "default": "false"
+          },
+          {
+            "name": "is_archived",
+            "type": "boolean",
+            "nullable": false,
+            "default": "false"
+          },
+          {
+            "name": "color",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "view_count",
+            "type": "integer",
+            "nullable": false,
+            "default": "0"
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "updated_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "updated_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_notes_user",
+            "columns": ["user_id"]
+          },
+          {
+            "name": "idx_notes_user_pinned",
+            "columns": ["user_id", "is_pinned"]
+          },
+          {
+            "name": "idx_notes_user_archived",
+            "columns": ["user_id", "is_archived"]
+          }
+        ]
+      },
+      {
+        "name": "note_tags",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "name",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "color",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_note_tags_user",
+            "columns": ["user_id"]
+          },
+          {
+            "name": "idx_note_tags_user_name",
+            "columns": ["user_id", "name"],
+            "unique": true
+          }
+        ]
+      },
+      {
+        "name": "note_tag_relations",
+        "fields": [
+          {
+            "name": "note_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "notes.id"
+          },
+          {
+            "name": "note_tag_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "note_tags.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_note_tag_relations_pair",
+            "columns": ["note_id", "note_tag_id"],
+            "unique": true
+          }
+        ]
+      }
+    ],
+    "migrations": [
+      {
+        "name": "create_notes_table",
+        "sql": "CREATE TABLE IF NOT EXISTS notes (...)"
+      },
+      {
+        "name": "create_note_tags_table",
+        "sql": "CREATE TABLE IF NOT EXISTS note_tags (...)"
+      },
+      {
+        "name": "create_note_tag_relations_table",
+        "sql": "CREATE TABLE IF NOT EXISTS note_tag_relations (...)"
+      }
+    ]
+  },
+
+  "integration": {
+    "steps": [
+      "1. Run database migration to create tables",
+      "2. Add backend models in backend/app/db/models/note.py",
+      "3. Add CRUD operations in backend/app/cruds/note_crud.py",
+      "4. Register API routes in backend/app/api/router.py",
+      "5. Create frontend components in frontend/src/components/notes/",
+      "6. Add API service in frontend/src/services/notes.ts",
+      "7. Integrate note editor with rich text support",
+      "8. Test note CRUD and tag operations"
+    ],
+    "config_needed": [
+      "Configure rich text editor for notes",
+      "Set up note auto-save interval",
+      "Configure note sharing settings"
+    ]
+  }
+}

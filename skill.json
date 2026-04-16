@@ -1,0 +1,68 @@
+{
+  "name": "modularity",
+  "version": "1.0.0",
+  "description": "AI全栈模块编译器 - 将功能命令转换为完整的全栈模块实现",
+  "category": "code-generation",
+  "commands": [
+    {
+      "name": "/comment-m",
+      "description": "多级评论系统 - 包含评论、回复、点赞功能"
+    },
+    {
+      "name": "/like",
+      "description": "点赞/取消点赞功能"
+    },
+    {
+      "name": "/follow",
+      "description": "用户关注/取消关注系统"
+    },
+    {
+      "name": "/notification",
+      "description": "通知系统 - 站内通知、推送设置"
+    },
+    {
+      "name": "/user-m",
+      "description": "用户系统 - 注册、登录、用户资料"
+    },
+    {
+      "name": "/post-m",
+      "description": "帖子系统 - 发帖、编辑、删除"
+    },
+    {
+      "name": "/search",
+      "description": "搜索功能 - 全文搜索、过滤"
+    },
+    {
+      "name": "/message",
+      "description": "私信系统"
+    }
+  ],
+  "options": [
+    {
+      "name": "--verify",
+      "description": "启用代码验证流程（lint + test）",
+      "type": "boolean"
+    },
+    {
+      "name": "--language",
+      "description": "指定后端语言",
+      "type": "string",
+      "values": ["python", "typescript"],
+      "default": "python"
+    },
+    {
+      "name": "--frontend",
+      "description": "指定前端框架",
+      "type": "string",
+      "values": ["react", "vue", "nextjs"],
+      "default": "react"
+    }
+  ],
+  "dependencies": {
+    "python": ["pylint", "black", "mypy", "pytest"],
+    "typescript": ["eslint", "typescript", "vitest"]
+  },
+  "entry": "./dist/index.js",
+  "author": "Modularity Team",
+  "license": "MIT"
+}

@@ -1,0 +1,549 @@
+{
+  "command": "/task-m",
+  "feature_name": "task_system",
+  "description": "User task system with新手任务 and daily tasks for engagement",
+
+  "backend": {
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/tasks",
+        "handler_name": "get_tasks",
+        "auth_required": true,
+        "pagination": "cursor"
+      },
+      {
+        "method": "GET",
+        "path": "/tasks/{id}",
+        "handler_name": "get_task",
+        "auth_required": true
+      },
+      {
+        "method": "POST",
+        "path": "/tasks/{id}/complete",
+        "handler_name": "complete_task",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/tasks/progress",
+        "handler_name": "get_task_progress",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/tasks/rewards",
+        "handler_name": "get_task_rewards",
+        "auth_required": true
+      }
+    ],
+    "services": [
+      {
+        "name": "TaskService",
+        "description": "Business logic for task operations",
+        "methods": [
+          {
+            "name": "get_available_tasks",
+            "description": "Get tasks available for user",
+            "async": true
+          },
+          {
+            "name": "complete_task",
+            "description": "Mark task as completed",
+            "async": true
+          },
+          {
+            "name": "claim_reward",
+            "description": "Claim task reward",
+            "async": true
+          },
+          {
+            "name": "get_task_progress",
+            "description": "Get user's task progress",
+            "async": true
+          },
+          {
+            "name": "refresh_daily_tasks",
+            "description": "Refresh daily tasks for user",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "models": [
+      {
+        "name": "Task",
+        "table_name": "tasks",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "title",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "type",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "target_action",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "target_value",
+            "type": "integer",
+            "nullable": false,
+            "default": "1"
+          },
+          {
+            "name": "points_reward",
+            "type": "integer",
+            "nullable": false,
+            "default": "0"
+          },
+          {
+            "name": "is_active",
+            "type": "boolean",
+            "nullable": false,
+            "default": "true"
+          },
+          {
+            "name": "start_date",
+            "type": "datetime",
+            "nullable": true
+          },
+          {
+            "name": "end_date",
+            "type": "datetime",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "updated_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_tasks_type",
+            "columns": ["type"]
+          },
+          {
+            "name": "idx_tasks_active",
+            "columns": ["is_active"]
+          }
+        ]
+      },
+      {
+        "name": "UserTask",
+        "table_name": "user_tasks",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id",
+            "index": true
+          },
+          {
+            "name": "task_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "tasks.id",
+            "index": true
+          },
+          {
+            "name": "progress",
+            "type": "integer",
+            "nullable": false,
+            "default": "0"
+          },
+          {
+            "name": "is_completed",
+            "type": "boolean",
+            "nullable": false,
+            "default": "false"
+          },
+          {
+            "name": "is_reward_claimed",
+            "type": "boolean",
+            "nullable": false,
+            "default": "false"
+          },
+          {
+            "name": "completed_at",
+            "type": "datetime",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "updated_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_user_tasks_user",
+            "columns": ["user_id"]
+          },
+          {
+            "name": "idx_user_tasks_task",
+            "columns": ["task_id"]
+          },
+          {
+            "name": "idx_user_tasks_user_task",
+            "columns": ["user_id", "task_id"],
+            "unique": true
+          }
+        ]
+      }
+    ],
+    "curds": [
+      {
+        "name": "task_crud",
+        "model_name": "Task",
+        "operations": ["create", "read", "update"]
+      },
+      {
+        "name": "user_task_crud",
+        "model_name": "UserTask",
+        "operations": ["create", "read", "update"]
+      }
+    ]
+  },
+
+  "frontend": {
+    "components": [
+      {
+        "name": "TaskList",
+        "description": "List of available tasks",
+        "props": [
+          {
+            "name": "tasks",
+            "type": "TaskWithProgress[]",
+            "required": true
+          },
+          {
+            "name": "onClaim",
+            "type": "(taskId: string) => void",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "TaskCard",
+        "description": "Single task card with progress",
+        "props": [
+          {
+            "name": "task",
+            "type": "TaskWithProgress",
+            "required": true
+          },
+          {
+            "name": "onClaim",
+            "type": "() => void",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "TaskProgress",
+        "description": "Progress bar for task",
+        "props": [
+          {
+            "name": "current",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "target",
+            "type": "number",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "DailyTasksPanel",
+        "description": "Panel showing daily tasks",
+        "props": [
+          {
+            "name": "tasks",
+            "type": "TaskWithProgress[]",
+            "required": true
+          }
+        ]
+      }
+    ],
+    "hooks": [
+      {
+        "name": "useTasks",
+        "description": "Get available tasks",
+        "returns": "{ tasks: TaskWithProgress[]; loading: boolean; refresh: () => void }"
+      },
+      {
+        "name": "useTaskProgress",
+        "description": "Get user's task progress",
+        "returns": "{ progress: TaskProgress; loading: boolean }"
+      },
+      {
+        "name": "useClaimTaskReward",
+        "description": "Claim task reward",
+        "returns": "{ claim: (taskId: string) => Promise<void>; isLoading: boolean }"
+      }
+    ],
+    "pages": [
+      {
+        "name": "TasksPage",
+        "route": "/tasks",
+        "description": "Main tasks page showing all tasks"
+      },
+      {
+        "name": "DailyTasksPage",
+        "route": "/tasks/daily",
+        "description": "Daily tasks page"
+      }
+    ]
+  },
+
+  "database": {
+    "tables": [
+      {
+        "name": "tasks",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "title",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "type",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "target_action",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "target_value",
+            "type": "integer",
+            "nullable": false,
+            "default": "1"
+          },
+          {
+            "name": "points_reward",
+            "type": "integer",
+            "nullable": false,
+            "default": "0"
+          },
+          {
+            "name": "is_active",
+            "type": "boolean",
+            "nullable": false,
+            "default": "true"
+          },
+          {
+            "name": "start_date",
+            "type": "datetime",
+            "nullable": true
+          },
+          {
+            "name": "end_date",
+            "type": "datetime",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "updated_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_tasks_type",
+            "columns": ["type"]
+          },
+          {
+            "name": "idx_tasks_active",
+            "columns": ["is_active"]
+          }
+        ]
+      },
+      {
+        "name": "user_tasks",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "task_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "tasks.id"
+          },
+          {
+            "name": "progress",
+            "type": "integer",
+            "nullable": false,
+            "default": "0"
+          },
+          {
+            "name": "is_completed",
+            "type": "boolean",
+            "nullable": false,
+            "default": "false"
+          },
+          {
+            "name": "is_reward_claimed",
+            "type": "boolean",
+            "nullable": false,
+            "default": "false"
+          },
+          {
+            "name": "completed_at",
+            "type": "datetime",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "updated_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_user_tasks_user",
+            "columns": ["user_id"]
+          },
+          {
+            "name": "idx_user_tasks_task",
+            "columns": ["task_id"]
+          },
+          {
+            "name": "idx_user_tasks_user_task",
+            "columns": ["user_id", "task_id"],
+            "unique": true
+          }
+        ]
+      }
+    ],
+    "migrations": [
+      {
+        "name": "create_tasks_table",
+        "sql": "CREATE TABLE IF NOT EXISTS tasks (...)"
+      },
+      {
+        "name": "create_user_tasks_table",
+        "sql": "CREATE TABLE IF NOT EXISTS user_tasks (...)"
+      }
+    ]
+  },
+
+  "integration": {
+    "steps": [
+      "1. Run database migration to create tables",
+      "2. Add backend models in backend/app/db/models/task.py",
+      "3. Add CRUD operations in backend/app/cruds/task_crud.py",
+      "4. Register API routes in backend/app/api/router.py",
+      "5. Seed default tasks (new user onboarding tasks)",
+      "6. Create frontend components in frontend/src/components/tasks/",
+      "7. Add API service in frontend/src/services/tasks.ts",
+      "8. Integrate task progress tracking into relevant services",
+      "9. Test task completion and reward claiming"
+    ],
+    "config_needed": [
+      "Seed default onboarding tasks",
+      "Configure task types and their tracking mechanisms",
+      "Set up daily task refresh schedule"
+    ]
+  }
+}

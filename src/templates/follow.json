@@ -1,0 +1,302 @@
+{
+  "command": "/follow",
+  "feature_name": "follow_system",
+  "description": "User follow/follower system with notifications",
+
+  "backend": {
+    "routes": [
+      {
+        "method": "POST",
+        "path": "/follows",
+        "handler_name": "create_follow",
+        "auth_required": true
+      },
+      {
+        "method": "DELETE",
+        "path": "/follows/{id}",
+        "handler_name": "delete_follow",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/follows/following/{user_id}",
+        "handler_name": "get_following",
+        "auth_required": false,
+        "pagination": "cursor"
+      },
+      {
+        "method": "GET",
+        "path": "/follows/followers/{user_id}",
+        "handler_name": "get_followers",
+        "auth_required": false,
+        "pagination": "cursor"
+      },
+      {
+        "method": "GET",
+        "path": "/follows/check/{target_user_id}",
+        "handler_name": "check_following",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/follows/stats/{user_id}",
+        "handler_name": "get_follow_stats",
+        "auth_required": false
+      }
+    ],
+    "services": [
+      {
+        "name": "FollowService",
+        "description": "Business logic for follow operations",
+        "methods": [
+          {
+            "name": "toggle_follow",
+            "description": "Toggle follow status (follow if not following, unfollow if following)",
+            "async": true
+          },
+          {
+            "name": "get_mutual_followers",
+            "description": "Get users that both users follow",
+            "async": true
+          },
+          {
+            "name": "get_suggested_users",
+            "description": "Get suggested users to follow",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "models": [
+      {
+        "name": "Follow",
+        "table_name": "follows",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "follower_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id",
+            "index": true
+          },
+          {
+            "name": "following_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id",
+            "index": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_follows_unique",
+            "columns": ["follower_id", "following_id"],
+            "unique": true
+          },
+          {
+            "name": "idx_follows_following",
+            "columns": ["following_id"]
+          }
+        ]
+      }
+    ],
+    "curds": [
+      {
+        "name": "follow_crud",
+        "model_name": "Follow",
+        "operations": ["create", "read", "delete"]
+      }
+    ]
+  },
+
+  "frontend": {
+    "components": [
+      {
+        "name": "FollowButton",
+        "description": "Follow/unfollow button with state",
+        "props": [
+          {
+            "name": "targetUserId",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "size",
+            "type": "'small' | 'medium' | 'large'",
+            "required": false
+          },
+          {
+            "name": "onFollowChange",
+            "type": "(isFollowing: boolean) => void",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "FollowersList",
+        "description": "List of followers for a user",
+        "props": [
+          {
+            "name": "userId",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "limit",
+            "type": "number",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "FollowingList",
+        "description": "List of users that a user follows",
+        "props": [
+          {
+            "name": "userId",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "limit",
+            "type": "number",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "FollowStats",
+        "description": "Display follower/following counts",
+        "props": [
+          {
+            "name": "userId",
+            "type": "string",
+            "required": true
+          }
+        ]
+      }
+    ],
+    "hooks": [
+      {
+        "name": "useFollow",
+        "description": "Check and manage follow status for a user",
+        "returns": "FollowState"
+      },
+      {
+        "name": "useFollowers",
+        "description": "Get list of followers for a user",
+        "returns": "FollowersState"
+      },
+      {
+        "name": "useFollowing",
+        "description": "Get list of users that a user follows",
+        "returns": "FollowingState"
+      },
+      {
+        "name": "useFollowStats",
+        "description": "Get follower/following counts",
+        "returns": "{ followers: number; following: number; loading: boolean }"
+      }
+    ],
+    "pages": [
+      {
+        "name": "FollowersPage",
+        "route": "/users/{userId}/followers",
+        "description": "Page displaying all followers for a user"
+      },
+      {
+        "name": "FollowingPage",
+        "route": "/users/{userId}/following",
+        "description": "Page displaying all users that a user follows"
+      }
+    ]
+  },
+
+  "database": {
+    "tables": [
+      {
+        "name": "follows",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "follower_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "following_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_follows_unique",
+            "columns": ["follower_id", "following_id"],
+            "unique": true
+          },
+          {
+            "name": "idx_follows_following",
+            "columns": ["following_id"]
+          }
+        ]
+      }
+    ],
+    "migrations": [
+      {
+        "name": "create_follows_table",
+        "sql": "CREATE TABLE IF NOT EXISTS follows (...)"
+      }
+    ]
+  },
+
+  "integration": {
+    "steps": [
+      "1. Run database migration to create 'follows' table",
+      "2. Add backend models in backend/app/db/models/follow.py",
+      "3. Add CRUD operations in backend/app/cruds/follow_crud.py",
+      "4. Register API routes in backend/app/api/router.py",
+      "5. Create frontend components in frontend/src/components/follows/",
+      "6. Add API service in frontend/src/services/follows.ts",
+      "7. Integrate FollowButton into user profiles",
+      "8. Set up notification system for new followers",
+      "9. Test follow/unfollow functionality"
+    ],
+    "config_needed": [
+      "Ensure users table exists for foreign key relationship",
+      "Configure authentication middleware for protected routes",
+      "Set up notification service for follow events",
+      "Add rate limiting to prevent follow spam"
+    ]
+  }
+}

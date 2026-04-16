@@ -1,0 +1,437 @@
+{
+  "command": "/moderation-m",
+  "feature_name": "moderation_system",
+  "description": "Content moderation queue and workflow system for administrators",
+
+  "backend": {
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/moderation/queue",
+        "handler_name": "get_moderation_queue",
+        "auth_required": true,
+        "pagination": "cursor"
+      },
+      {
+        "method": "GET",
+        "path": "/moderation/queue/{id}",
+        "handler_name": "get_moderation_item",
+        "auth_required": true
+      },
+      {
+        "method": "POST",
+        "path": "/moderation/queue/{id}/approve",
+        "handler_name": "approve_content",
+        "auth_required": true
+      },
+      {
+        "method": "POST",
+        "path": "/moderation/queue/{id}/reject",
+        "handler_name": "reject_content",
+        "auth_required": true
+      },
+      {
+        "method": "POST",
+        "path": "/moderation/queue/{id}/warn",
+        "handler_name": "warn_user",
+        "auth_required": true
+      },
+      {
+        "method": "POST",
+        "path": "/moderation/queue/{id}/skip",
+        "handler_name": "skip_item",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/moderation/stats",
+        "handler_name": "get_moderation_stats",
+        "auth_required": true
+      },
+      {
+        "method": "POST",
+        "path": "/moderation/users/{id}/suspend",
+        "handler_name": "suspend_user",
+        "auth_required": true
+      },
+      {
+        "method": "POST",
+        "path": "/moderation/users/{id}/unsuspend",
+        "handler_name": "unsuspend_user",
+        "auth_required": true
+      }
+    ],
+    "services": [
+      {
+        "name": "ModerationService",
+        "description": "Business logic for moderation operations",
+        "methods": [
+          {
+            "name": "get_queue",
+            "description": "Get moderation queue with filtering",
+            "async": true
+          },
+          {
+            "name": "approve_content",
+            "description": "Approve reported content",
+            "async": true
+          },
+          {
+            "name": "reject_content",
+            "description": "Reject/delete reported content",
+            "async": true
+          },
+          {
+            "name": "warn_user",
+            "description": "Issue warning to user",
+            "async": true
+          },
+          {
+            "name": "suspend_user",
+            "description": "Suspend user account",
+            "async": true
+          },
+          {
+            "name": "get_stats",
+            "description": "Get moderation statistics",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "models": [
+      {
+        "name": "ModerationQueueItem",
+        "table_name": "moderation_queue",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "report_id",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "reports.id"
+          },
+          {
+            "name": "target_type",
+            "type": "string",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "target_id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "reason",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "priority",
+            "type": "string",
+            "nullable": false,
+            "default": "'normal'"
+          },
+          {
+            "name": "status",
+            "type": "string",
+            "nullable": false,
+            "default": "'pending'"
+          },
+          {
+            "name": "moderator_id",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "moderated_at",
+            "type": "datetime",
+            "nullable": true
+          },
+          {
+            "name": "action_taken",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "notes",
+            "type": "text",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_moderation_queue_status",
+            "columns": ["status"]
+          },
+          {
+            "name": "idx_moderation_queue_priority",
+            "columns": ["priority"]
+          },
+          {
+            "name": "idx_moderation_queue_target",
+            "columns": ["target_type", "target_id"]
+          }
+        ]
+      }
+    ],
+    "curds": [
+      {
+        "name": "moderation_queue_crud",
+        "model_name": "ModerationQueueItem",
+        "operations": ["create", "read", "update"]
+      }
+    ]
+  },
+
+  "frontend": {
+    "components": [
+      {
+        "name": "ModerationQueueList",
+        "description": "List of items in moderation queue",
+        "props": [
+          {
+            "name": "items",
+            "type": "ModerationItem[]",
+            "required": true
+          },
+          {
+            "name": "onApprove",
+            "type": "(id: string) => void",
+            "required": true
+          },
+          {
+            "name": "onReject",
+            "type": "(id: string, reason: string) => void",
+            "required": true
+          },
+          {
+            "name": "onWarn",
+            "type": "(id: string) => void",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "ModerationItemCard",
+        "description": "Card showing moderation item details",
+        "props": [
+          {
+            "name": "item",
+            "type": "ModerationItem",
+            "required": true
+          },
+          {
+            "name": "onAction",
+            "type": "(action: string) => void",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "ModerationStats",
+        "description": "Dashboard showing moderation statistics",
+        "props": [
+          {
+            "name": "stats",
+            "type": "ModerationStats",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "UserModerationActions",
+        "description": "Actions for moderating a user",
+        "props": [
+          {
+            "name": "userId",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "onSuspend",
+            "type": "(reason: string, duration: string) => void",
+            "required": true
+          },
+          {
+            "name": "onWarn",
+            "type": "(reason: string) => void",
+            "required": false
+          }
+        ]
+      }
+    ],
+    "hooks": [
+      {
+        "name": "useModerationQueue",
+        "description": "Get moderation queue",
+        "returns": "{ items: ModerationItem[]; loading: boolean; refresh: () => void }"
+      },
+      {
+        "name": "useModerationAction",
+        "description": "Perform moderation action",
+        "returns": "{ action: (id: string, action: string, notes?: string) => Promise<void>; isLoading: boolean }"
+      },
+      {
+        "name": "useModerationStats",
+        "description": "Get moderation statistics",
+        "returns": "{ stats: ModerationStats; loading: boolean }"
+      },
+      {
+        "name": "useSuspendUser",
+        "description": "Suspend user",
+        "returns": "{ suspend: (userId: string, reason: string, duration: string) => Promise<void>; isLoading: boolean }"
+      }
+    ],
+    "pages": [
+      {
+        "name": "ModerationQueuePage",
+        "route": "/admin/moderation",
+        "description": "Moderation queue page"
+      },
+      {
+        "name": "ModerationStatsPage",
+        "route": "/admin/moderation/stats",
+        "description": "Moderation statistics dashboard"
+      }
+    ]
+  },
+
+  "database": {
+    "tables": [
+      {
+        "name": "moderation_queue",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "report_id",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "reports.id"
+          },
+          {
+            "name": "target_type",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "target_id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "reason",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "priority",
+            "type": "string",
+            "nullable": false,
+            "default": "'normal'"
+          },
+          {
+            "name": "status",
+            "type": "string",
+            "nullable": false,
+            "default": "'pending'"
+          },
+          {
+            "name": "moderator_id",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "moderated_at",
+            "type": "datetime",
+            "nullable": true
+          },
+          {
+            "name": "action_taken",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "notes",
+            "type": "text",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_moderation_queue_status",
+            "columns": ["status"]
+          },
+          {
+            "name": "idx_moderation_queue_priority",
+            "columns": ["priority"]
+          },
+          {
+            "name": "idx_moderation_queue_target",
+            "columns": ["target_type", "target_id"]
+          }
+        ]
+      }
+    ],
+    "migrations": [
+      {
+        "name": "create_moderation_queue_table",
+        "sql": "CREATE TABLE IF NOT EXISTS moderation_queue (...)"
+      }
+    ]
+  },
+
+  "integration": {
+    "steps": [
+      "1. Run database migration to create 'moderation_queue' table",
+      "2. Add backend models in backend/app/db/models/moderation.py",
+      "3. Add CRUD operations in backend/app/cruds/moderation_crud.py",
+      "4. Register API routes in backend/app/api/router.py",
+      "5. Configure role-based access (moderator role required)",
+      "6. Create frontend components in frontend/src/components/moderation/",
+      "7. Add API service in frontend/src/services/moderation.ts",
+      "8. Test moderation workflow"
+    ],
+    "config_needed": [
+      "Configure moderator role permissions",
+      "Set up auto-adding reports to moderation queue",
+      "Configure suspension durations and rules"
+    ]
+  }
+}

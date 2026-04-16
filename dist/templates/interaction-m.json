@@ -1,0 +1,530 @@
+{
+  "command": "/interaction-m",
+  "feature_name": "interaction_system",
+  "description": "Unified interaction system combining likes, favorites, shares, bookmarks, and ratings. Replaces separate like-m, favorite-m, share-m modules.",
+
+  "replaces": ["like", "favorite-m", "share-m"],
+
+  "backend": {
+    "routes": [
+      {
+        "method": "POST",
+        "path": "/interactions",
+        "handler_name": "create_interaction",
+        "auth_required": true
+      },
+      {
+        "method": "DELETE",
+        "path": "/interactions/{id}",
+        "handler_name": "delete_interaction",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/interactions",
+        "handler_name": "get_user_interactions",
+        "auth_required": true,
+        "pagination": "cursor"
+      },
+      {
+        "method": "GET",
+        "path": "/interactions/check",
+        "handler_name": "check_interactions",
+        "auth_required": true,
+        "description": "Check multiple interactions at once, e.g. ?items=post:1,post:2,comment:3&types=like,favorite"
+      },
+      {
+        "method": "GET",
+        "path": "/interactions/{content_type}/{content_id}/counts",
+        "handler_name": "get_interaction_counts",
+        "auth_required": false
+      },
+      {
+        "method": "GET",
+        "path": "/interactions/{content_type}/{content_id}/{interaction_type}",
+        "handler_name": "get_interactions_by_type",
+        "auth_required": false,
+        "pagination": "cursor"
+      }
+    ],
+    "services": [
+      {
+        "name": "InteractionService",
+        "description": "Business logic for all interaction operations",
+        "methods": [
+          {
+            "name": "add_interaction",
+            "description": "Add interaction (like, favorite, share, bookmark, etc.)",
+            "async": true
+          },
+          {
+            "name": "remove_interaction",
+            "description": "Remove interaction",
+            "async": true
+          },
+          {
+            "name": "toggle_interaction",
+            "description": "Toggle interaction on/off",
+            "async": true
+          },
+          {
+            "name": "bulk_check_interactions",
+            "description": "Check multiple items for interaction status",
+            "async": true
+          },
+          {
+            "name": "get_content_counts",
+            "description": "Get counts for all interaction types on content",
+            "async": true
+          },
+          {
+            "name": "get_user_interactions",
+            "description": "Get user's interactions with cursor pagination",
+            "async": true
+          },
+          {
+            "name": "get_interactions_by_type",
+            "description": "Get specific interaction type on content with pagination",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "models": [
+      {
+        "name": "Interaction",
+        "table_name": "interactions",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id",
+            "index": true
+          },
+          {
+            "name": "interaction_type",
+            "type": "string",
+            "nullable": false,
+            "description": "Type: 'like', 'favorite', 'share', 'bookmark', 'rating', 'reaction'"
+          },
+          {
+            "name": "content_type",
+            "type": "string",
+            "nullable": false,
+            "description": "Content type: 'post', 'comment', 'user', etc."
+          },
+          {
+            "name": "content_id",
+            "type": "integer",
+            "nullable": false,
+            "description": "ID of the content item"
+          },
+          {
+            "name": "metadata",
+            "type": "json",
+            "nullable": true,
+            "description": "Additional data: rating value, share platform, etc."
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_interactions_user",
+            "columns": ["user_id"]
+          },
+          {
+            "name": "idx_interactions_user_type",
+            "columns": ["user_id", "interaction_type"]
+          },
+          {
+            "name": "idx_interactions_content",
+            "columns": ["content_type", "content_id"]
+          },
+          {
+            "name": "idx_interactions_unique",
+            "columns": ["user_id", "interaction_type", "content_type", "content_id"],
+            "unique": true
+          },
+          {
+            "name": "idx_interactions_type_content",
+            "columns": ["interaction_type", "content_type", "content_id"]
+          }
+        ]
+      },
+      {
+        "name": "InteractionCount",
+        "table_name": "interaction_counts",
+        "description": "Denormalized counts for fast retrieval",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "content_type",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "content_id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "interaction_type",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "count",
+            "type": "integer",
+            "nullable": false,
+            "default": "0"
+          },
+          {
+            "name": "updated_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_interaction_counts_target",
+            "columns": ["content_type", "content_id", "interaction_type"],
+            "unique": true
+          }
+        ]
+      }
+    ],
+    "curds": [
+      {
+        "name": "interaction_crud",
+        "model_name": "Interaction",
+        "operations": ["create", "read", "delete"]
+      },
+      {
+        "name": "interaction_count_crud",
+        "model_name": "InteractionCount",
+        "operations": ["read", "update"]
+      }
+    ]
+  },
+
+  "frontend": {
+    "components": [
+      {
+        "name": "InteractionButton",
+        "description": "Generic interaction button with type support",
+        "props": [
+          {
+            "name": "type",
+            "type": "'like' | 'favorite' | 'share' | 'bookmark'",
+            "required": true
+          },
+          {
+            "name": "contentType",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "contentId",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "isActive",
+            "type": "boolean",
+            "required": false
+          },
+          {
+            "name": "count",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "onToggle",
+            "type": "() => void",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "InteractionBar",
+        "description": "Bar with multiple interaction buttons (like, comment, share, etc.)",
+        "props": [
+          {
+            "name": "contentType",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "contentId",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "counts",
+            "type": "Record<string, number>",
+            "required": false
+          },
+          {
+            "name": "activeInteractions",
+            "type": "Record<string, boolean>",
+            "required": false
+          },
+          {
+            "name": "onInteractionToggle",
+            "type": "(type: string) => void",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "InteractionCount",
+        "description": "Display count with icon for specific interaction type",
+        "props": [
+          {
+            "name": "type",
+            "type": "'like' | 'favorite' | 'share' | 'bookmark' | 'reaction'",
+            "required": true
+          },
+          {
+            "name": "count",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "isActive",
+            "type": "boolean",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "SharePanel",
+        "description": "Share options panel (replaces share-m)",
+        "props": [
+          {
+            "name": "contentType",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "contentId",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "visible",
+            "type": "boolean",
+            "required": false
+          },
+          {
+            "name": "onClose",
+            "type": "() => void",
+            "required": false
+          }
+        ]
+      }
+    ],
+    "hooks": [
+      {
+        "name": "useInteraction",
+        "description": "Check and toggle single interaction",
+        "returns": "{ isActive: boolean; toggle: () => void; isLoading: boolean }"
+      },
+      {
+        "name": "useInteractionCounts",
+        "description": "Get counts for all interaction types on content",
+        "returns": "{ counts: Record<string, number>; loading: boolean }"
+      },
+      {
+        "name": "useBulkCheckInteractions",
+        "description": "Check multiple items for interaction status",
+        "returns": "{ check: (items: ContentRef[], types: string[]) => Promise<Record<string, boolean>>; isLoading: boolean }"
+      },
+      {
+        "name": "useUserInteractions",
+        "description": "Get user's interactions with cursor pagination",
+        "returns": "{ interactions: Interaction[]; nextCursor: string | null; hasMore: boolean; loading: boolean }"
+      }
+    ],
+    "pages": [
+      {
+        "name": "UserInteractionsPage",
+        "route": "/interactions",
+        "description": "User's activity/interactions page"
+      }
+    ]
+  },
+
+  "database": {
+    "tables": [
+      {
+        "name": "interactions",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "interaction_type",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "content_type",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "content_id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "metadata",
+            "type": "json",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_interactions_user",
+            "columns": ["user_id"]
+          },
+          {
+            "name": "idx_interactions_user_type",
+            "columns": ["user_id", "interaction_type"]
+          },
+          {
+            "name": "idx_interactions_content",
+            "columns": ["content_type", "content_id"]
+          },
+          {
+            "name": "idx_interactions_unique",
+            "columns": ["user_id", "interaction_type", "content_type", "content_id"],
+            "unique": true
+          },
+          {
+            "name": "idx_interactions_type_content",
+            "columns": ["interaction_type", "content_type", "content_id"]
+          }
+        ]
+      },
+      {
+        "name": "interaction_counts",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "content_type",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "content_id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "interaction_type",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "count",
+            "type": "integer",
+            "nullable": false,
+            "default": "0"
+          },
+          {
+            "name": "updated_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_interaction_counts_target",
+            "columns": ["content_type", "content_id", "interaction_type"],
+            "unique": true
+          }
+        ]
+      }
+    ],
+    "migrations": [
+      {
+        "name": "create_interactions_table",
+        "sql": "CREATE TABLE IF NOT EXISTS interactions (...)"
+      },
+      {
+        "name": "create_interaction_counts_table",
+        "sql": "CREATE TABLE IF NOT EXISTS interaction_counts (...)"
+      }
+    ]
+  },
+
+  "integration": {
+    "steps": [
+      "1. Run database migration to create tables",
+      "2. Add backend models in backend/app/db/models/interaction.py",
+      "3. Add CRUD operations in backend/app/cruds/interaction_crud.py",
+      "4. Register API routes in backend/app/api/router.py",
+      "5. Create frontend components in frontend/src/components/interactions/",
+      "6. Add API service in frontend/src/services/interactions.ts",
+      "7. Replace LikeButton, FavoriteButton, ShareButton with InteractionButton",
+      "8. Replace LikeCount, FavoriteCount with InteractionCount",
+      "9. Update content services to use InteractionService for counts"
+    ],
+    "config_needed": [
+      "Remove like, favorite, share modules if migrating (or keep as aliases)",
+      "Set up trigger to update interaction_counts on insert/delete",
+      "Configure which interaction types are enabled per content type"
+    ]
+  }
+}

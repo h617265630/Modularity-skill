@@ -1,0 +1,513 @@
+{
+  "command": "/analytics-m",
+  "feature_name": "analytics_system",
+  "description": "Analytics and statistics dashboard system",
+
+  "backend": {
+    "routes": [
+      {
+        "method": "POST",
+        "path": "/analytics/events",
+        "handler_name": "track_event",
+        "auth_required": false
+      },
+      {
+        "method": "GET",
+        "path": "/analytics/events",
+        "handler_name": "get_events",
+        "auth_required": true,
+        "pagination": "cursor"
+      },
+      {
+        "method": "GET",
+        "path": "/analytics/stats",
+        "handler_name": "get_stats",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/analytics/content/{id}",
+        "handler_name": "get_content_stats",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/analytics/users/{id}",
+        "handler_name": "get_user_stats",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/analytics/dashboard",
+        "handler_name": "get_dashboard_data",
+        "auth_required": true
+      }
+    ],
+    "services": [
+      {
+        "name": "AnalyticsService",
+        "description": "Business logic for analytics",
+        "methods": [
+          {
+            "name": "track_event",
+            "description": "Track analytics event",
+            "async": true
+          },
+          {
+            "name": "get_content_stats",
+            "description": "Get statistics for specific content",
+            "async": true
+          },
+          {
+            "name": "get_user_stats",
+            "description": "Get statistics for user",
+            "async": true
+          },
+          {
+            "name": "get_dashboard_stats",
+            "description": "Get dashboard overview statistics",
+            "async": true
+          },
+          {
+            "name": "get_view_count",
+            "description": "Get view count for content",
+            "async": true
+          },
+          {
+            "name": "increment_view",
+            "description": "Increment view count",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "models": [
+      {
+        "name": "AnalyticsEvent",
+        "table_name": "analytics_events",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "event_type",
+            "type": "string",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "target_type",
+            "type": "string",
+            "nullable": true,
+            "index": true
+          },
+          {
+            "name": "target_id",
+            "type": "integer",
+            "nullable": true
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "properties",
+            "type": "json",
+            "nullable": true
+          },
+          {
+            "name": "ip_address",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "user_agent",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_analytics_events_type",
+            "columns": ["event_type"]
+          },
+          {
+            "name": "idx_analytics_events_target",
+            "columns": ["target_type", "target_id"]
+          },
+          {
+            "name": "idx_analytics_events_user",
+            "columns": ["user_id"]
+          },
+          {
+            "name": "idx_analytics_events_created",
+            "columns": ["created_at"]
+          }
+        ]
+      },
+      {
+        "name": "ContentStats",
+        "table_name": "content_stats",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "content_type",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "content_id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "view_count",
+            "type": "integer",
+            "nullable": false,
+            "default": "0"
+          },
+          {
+            "name": "unique_view_count",
+            "type": "integer",
+            "nullable": false,
+            "default": "0"
+          },
+          {
+            "name": "share_count",
+            "type": "integer",
+            "nullable": false,
+            "default": "0"
+          },
+          {
+            "name": "today_view_count",
+            "type": "integer",
+            "nullable": false,
+            "default": "0"
+          },
+          {
+            "name": "updated_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_content_stats_target",
+            "columns": ["content_type", "content_id"],
+            "unique": true
+          }
+        ]
+      }
+    ],
+    "curds": [
+      {
+        "name": "analytics_event_crud",
+        "model_name": "AnalyticsEvent",
+        "operations": ["create", "read"]
+      },
+      {
+        "name": "content_stats_crud",
+        "model_name": "ContentStats",
+        "operations": ["create", "read", "update"]
+      }
+    ]
+  },
+
+  "frontend": {
+    "components": [
+      {
+        "name": "StatsCard",
+        "description": "Single statistics card",
+        "props": [
+          {
+            "name": "title",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "value",
+            "type": "number | string",
+            "required": true
+          },
+          {
+            "name": "change",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "icon",
+            "type": "ReactNode",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "StatsChart",
+        "description": "Chart displaying statistics over time",
+        "props": [
+          {
+            "name": "data",
+            "type": "ChartData[]",
+            "required": true
+          },
+          {
+            "name": "type",
+            "type": "'line' | 'bar' | 'pie'",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "DashboardStats",
+        "description": "Main dashboard with overview statistics",
+        "props": [
+          {
+            "name": "timeRange",
+            "type": "'today' | 'week' | 'month' | 'year'",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "ContentStatsWidget",
+        "description": "Widget showing content statistics",
+        "props": [
+          {
+            "name": "contentType",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "contentId",
+            "type": "string",
+            "required": true
+          }
+        ]
+      }
+    ],
+    "hooks": [
+      {
+        "name": "useDashboardStats",
+        "description": "Get dashboard statistics",
+        "returns": "{ stats: DashboardStats; loading: boolean; timeRange: string }"
+      },
+      {
+        "name": "useContentStats",
+        "description": "Get content statistics",
+        "returns": "{ stats: ContentStats; loading: boolean }"
+      },
+      {
+        "name": "useUserStats",
+        "description": "Get user statistics",
+        "returns": "{ stats: UserStats; loading: boolean }"
+      },
+      {
+        "name": "useTrackEvent",
+        "description": "Track analytics event",
+        "returns": "{ track: (event: AnalyticsEvent) => void }"
+      }
+    ],
+    "pages": [
+      {
+        "name": "AnalyticsDashboardPage",
+        "route": "/admin/analytics",
+        "description": "Main analytics dashboard page"
+      },
+      {
+        "name": "ContentAnalyticsPage",
+        "route": "/admin/analytics/content/{id}",
+        "description": "Content-specific analytics page"
+      }
+    ]
+  },
+
+  "database": {
+    "tables": [
+      {
+        "name": "analytics_events",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "event_type",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "target_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "target_id",
+            "type": "integer",
+            "nullable": true
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "properties",
+            "type": "json",
+            "nullable": true
+          },
+          {
+            "name": "ip_address",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "user_agent",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_analytics_events_type",
+            "columns": ["event_type"]
+          },
+          {
+            "name": "idx_analytics_events_target",
+            "columns": ["target_type", "target_id"]
+          },
+          {
+            "name": "idx_analytics_events_user",
+            "columns": ["user_id"]
+          },
+          {
+            "name": "idx_analytics_events_created",
+            "columns": ["created_at"]
+          }
+        ]
+      },
+      {
+        "name": "content_stats",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "content_type",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "content_id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "view_count",
+            "type": "integer",
+            "nullable": false,
+            "default": "0"
+          },
+          {
+            "name": "unique_view_count",
+            "type": "integer",
+            "nullable": false,
+            "default": "0"
+          },
+          {
+            "name": "share_count",
+            "type": "integer",
+            "nullable": false,
+            "default": "0"
+          },
+          {
+            "name": "today_view_count",
+            "type": "integer",
+            "nullable": false,
+            "default": "0"
+          },
+          {
+            "name": "updated_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_content_stats_target",
+            "columns": ["content_type", "content_id"],
+            "unique": true
+          }
+        ]
+      }
+    ],
+    "migrations": [
+      {
+        "name": "create_analytics_events_table",
+        "sql": "CREATE TABLE IF NOT EXISTS analytics_events (...)"
+      },
+      {
+        "name": "create_content_stats_table",
+        "sql": "CREATE TABLE IF NOT EXISTS content_stats (...)"
+      }
+    ]
+  },
+
+  "integration": {
+    "steps": [
+      "1. Run database migration to create tables",
+      "2. Add backend models in backend/app/db/models/analytics.py",
+      "3. Add CRUD operations in backend/app/cruds/analytics_crud.py",
+      "4. Register API routes in backend/app/api/router.py",
+      "5. Create frontend components in frontend/src/components/analytics/",
+      "6. Add API service in frontend/src/services/analytics.ts",
+      "7. Integrate view tracking into post service",
+      "8. Set up daily stats aggregation job",
+      "9. Test analytics tracking and display"
+    ],
+    "config_needed": [
+      "Configure analytics event types",
+      "Set up daily aggregation scheduled job",
+      "Configure dashboard data refresh interval"
+    ]
+  }
+}

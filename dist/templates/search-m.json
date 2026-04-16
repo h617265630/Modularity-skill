@@ -1,0 +1,362 @@
+{
+  "command": "/search-m",
+  "feature_name": "search_system",
+  "description": "Full-text search system for content discovery",
+
+  "backend": {
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/search",
+        "handler_name": "search",
+        "auth_required": false,
+        "pagination": "cursor"
+      },
+      {
+        "method": "POST",
+        "path": "/search/index",
+        "handler_name": "reindex_content",
+        "auth_required": true
+      },
+      {
+        "method": "DELETE",
+        "path": "/search/index/{type}/{id}",
+        "handler_name": "remove_from_index",
+        "auth_required": true
+      }
+    ],
+    "services": [
+      {
+        "name": "SearchService",
+        "description": "Business logic for search operations",
+        "methods": [
+          {
+            "name": "search",
+            "description": "Perform full-text search across content types",
+            "async": true
+          },
+          {
+            "name": "search_posts",
+            "description": "Search posts specifically",
+            "async": true
+          },
+          {
+            "name": "search_users",
+            "description": "Search users",
+            "async": true
+          },
+          {
+            "name": "index_content",
+            "description": "Add or update content in search index",
+            "async": true
+          },
+          {
+            "name": "remove_from_index",
+            "description": "Remove content from search index",
+            "async": true
+          },
+          {
+            "name": "reindex_all",
+            "description": "Reindex all content",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "models": [
+      {
+        "name": "SearchIndex",
+        "table_name": "search_index",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "content_type",
+            "type": "string",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "content_id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "title",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "content",
+            "type": "text",
+            "nullable": true
+          },
+          {
+            "name": "metadata",
+            "type": "json",
+            "nullable": true
+          },
+          {
+            "name": "search_vector",
+            "type": "tsvector",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          },
+          {
+            "name": "updated_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "updated_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_search_index_type_id",
+            "columns": ["content_type", "content_id"]
+          },
+          {
+            "name": "idx_search_index_vector",
+            "columns": ["search_vector"],
+            "using": "gin"
+          }
+        ]
+      }
+    ],
+    "curds": [
+      {
+        "name": "search_index_crud",
+        "model_name": "SearchIndex",
+        "operations": ["create", "read", "update", "delete"]
+      }
+    ]
+  },
+
+  "frontend": {
+    "components": [
+      {
+        "name": "SearchBar",
+        "description": "Main search input component",
+        "props": [
+          {
+            "name": "onSearch",
+            "type": "(query: string) => void",
+            "required": true
+          },
+          {
+            "name": "placeholder",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "autoFocus",
+            "type": "boolean",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "SearchResults",
+        "description": "Display search results by type",
+        "props": [
+          {
+            "name": "results",
+            "type": "SearchResults",
+            "required": true
+          },
+          {
+            "name": "loading",
+            "type": "boolean",
+            "required": false
+          },
+          {
+            "name": "query",
+            "type": "string",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "SearchFilters",
+        "description": "Filter options for search",
+        "props": [
+          {
+            "name": "onFilterChange",
+            "type": "(filters: SearchFilters) => void",
+            "required": true
+          },
+          {
+            "name": "filters",
+            "type": "SearchFilters",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "SearchSuggestion",
+        "description": "Search suggestion dropdown",
+        "props": [
+          {
+            "name": "suggestions",
+            "type": "string[]",
+            "required": true
+          },
+          {
+            "name": "onSelect",
+            "type": "(suggestion: string) => void",
+            "required": true
+          },
+          {
+            "name": "visible",
+            "type": "boolean",
+            "required": false
+          }
+        ]
+      }
+    ],
+    "hooks": [
+      {
+        "name": "useSearch",
+        "description": "Perform search",
+        "returns": "{ results: SearchResults; search: (query: string, filters?: SearchFilters) => void; isLoading: boolean }"
+      },
+      {
+        "name": "useSearchSuggestions",
+        "description": "Get search suggestions",
+        "returns": "{ suggestions: string[]; getSuggestions: (query: string) => void; isLoading: boolean }"
+      }
+    ],
+    "pages": [
+      {
+        "name": "SearchPage",
+        "route": "/search",
+        "description": "Main search page"
+      }
+    ]
+  },
+
+  "database": {
+    "tables": [
+      {
+        "name": "search_index",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "content_type",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "content_id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "title",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "content",
+            "type": "text",
+            "nullable": true
+          },
+          {
+            "name": "metadata",
+            "type": "json",
+            "nullable": true
+          },
+          {
+            "name": "search_vector",
+            "type": "tsvector",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "updated_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "updated_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_search_index_type_id",
+            "columns": ["content_type", "content_id"]
+          },
+          {
+            "name": "idx_search_index_vector",
+            "columns": ["search_vector"],
+            "using": "gin"
+          }
+        ]
+      }
+    ],
+    "migrations": [
+      {
+        "name": "create_search_index_table",
+        "sql": "CREATE TABLE IF NOT EXISTS search_index (...)"
+      }
+    ]
+  },
+
+  "integration": {
+    "steps": [
+      "1. Run database migration to create 'search_index' table",
+      "2. Add backend models in backend/app/db/models/search.py",
+      "3. Add CRUD operations in backend/app/cruds/search_crud.py",
+      "4. Register API routes in backend/app/api/router.py",
+      "5. Configure PostgreSQL full-text search or Elasticsearch",
+      "6. Create frontend components in frontend/src/components/search/",
+      "7. Add API service in frontend/src/services/search.ts",
+      "8. Integrate search indexing into post and content creation",
+      "9. Test search functionality"
+    ],
+    "config_needed": [
+      "Configure PostgreSQL tsvector or set up Elasticsearch",
+      "Set up search indexing triggers for content updates",
+      "Configure search result ranking weights"
+    ]
+  }
+}

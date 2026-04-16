@@ -1,0 +1,49 @@
+{
+  "name": "modularity",
+  "version": "1.0.0",
+  "description": "AI全栈模块编译器 - 一句话生成完整功能模块",
+  "icon": "🧩",
+  "triggers": [
+    "/comment-m",
+    "/like",
+    "/follow",
+    "/notification",
+    "/user-m",
+    "/post-m",
+    "/search",
+    "/message"
+  ],
+  "usage": {
+    "default": "{command}",
+    "with_verify": "{command} --verify",
+    "with_options": "{command} --language python --frontend react"
+  },
+  "examples": [
+    {
+      "command": "/comment-m",
+      "description": "生成评论系统模块"
+    },
+    {
+      "command": "/like --verify",
+      "description": "生成点赞模块并运行验证"
+    },
+    {
+      "command": "/follow --language typescript --frontend nextjs",
+      "description": "生成 TypeScript + NextJS 关注模块"
+    }
+  ],
+  "flow": {
+    "1": "解析功能命令（如 /comment-m）",
+    "2": "加载模块模板定义",
+    "3": "生成后端代码（FastAPI + SQLAlchemy）",
+    "4": "生成前端代码（React + TypeScript）",
+    "5": "生成数据库迁移脚本",
+    "6": "运行代码验证（可选）",
+    "7": "输出完整的代码补丁"
+  },
+  "output": {
+    "backend": "FastAPI 路由 + Service + CRUD",
+    "frontend": "React 组件 + Hooks + API 调用",
+    "database": "PostgreSQL 表结构 + 索引"
+  }
+}

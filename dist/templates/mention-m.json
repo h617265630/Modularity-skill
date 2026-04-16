@@ -1,0 +1,360 @@
+{
+  "command": "/mention-m",
+  "feature_name": "mention_system",
+  "description": "@mention system for notifying users when mentioned in content",
+
+  "backend": {
+    "routes": [
+      {
+        "method": "POST",
+        "path": "/mentions/parse",
+        "handler_name": "parse_mentions",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/mentions",
+        "handler_name": "get_user_mentions",
+        "auth_required": true
+      },
+      {
+        "method": "PATCH",
+        "path": "/mentions/{id}/read",
+        "handler_name": "mark_mention_read",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/mentions/unread-count",
+        "handler_name": "get_unread_mentions_count",
+        "auth_required": true
+      }
+    ],
+    "services": [
+      {
+        "name": "MentionService",
+        "description": "Business logic for mention operations",
+        "methods": [
+          {
+            "name": "parse_mentions",
+            "description": "Parse text and extract @mentions",
+            "async": true
+          },
+          {
+            "name": "create_mentions",
+            "description": "Create mention notifications for mentioned users",
+            "async": true
+          },
+          {
+            "name": "get_user_mentions",
+            "description": "Get user's mention notifications",
+            "async": true
+          },
+          {
+            "name": "mark_as_read",
+            "description": "Mark mention as read",
+            "async": true
+          },
+          {
+            "name": "get_unread_count",
+            "description": "Get count of unread mentions",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "models": [
+      {
+        "name": "Mention",
+        "table_name": "mentions",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "mentioned_user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id",
+            "index": true
+          },
+          {
+            "name": "mentioner_user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id",
+            "index": true
+          },
+          {
+            "name": "target_type",
+            "type": "string",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "target_id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "content_preview",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "is_read",
+            "type": "boolean",
+            "nullable": false,
+            "default": "false"
+          },
+          {
+            "name": "read_at",
+            "type": "datetime",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_mentions_user",
+            "columns": ["mentioned_user_id"]
+          },
+          {
+            "name": "idx_mentions_target",
+            "columns": ["target_type", "target_id"]
+          },
+          {
+            "name": "idx_mentions_unread",
+            "columns": ["mentioned_user_id", "is_read"]
+          }
+        ]
+      }
+    ],
+    "curds": [
+      {
+        "name": "mention_crud",
+        "model_name": "Mention",
+        "operations": ["create", "read", "update"]
+      }
+    ]
+  },
+
+  "frontend": {
+    "components": [
+      {
+        "name": "MentionInput",
+        "description": "Input with @mention support",
+        "props": [
+          {
+            "name": "value",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "onChange",
+            "type": "(value: string) => void",
+            "required": true
+          },
+          {
+            "name": "onMention",
+            "type": "(user: User) => void",
+            "required": false
+          },
+          {
+            "name": "placeholder",
+            "type": "string",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "MentionSuggestions",
+        "description": "Dropdown with user suggestions when typing @",
+        "props": [
+          {
+            "name": "query",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "onSelect",
+            "type": "(user: User) => void",
+            "required": true
+          },
+          {
+            "name": "visible",
+            "type": "boolean",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "MentionNotification",
+        "description": "Single mention notification item",
+        "props": [
+          {
+            "name": "mention",
+            "type": "Mention",
+            "required": true
+          },
+          {
+            "name": "onClick",
+            "type": "() => void",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "MentionList",
+        "description": "List of user mentions",
+        "props": [
+          {
+            "name": "mentions",
+            "type": "Mention[]",
+            "required": true
+          },
+          {
+            "name": "onMarkRead",
+            "type": "(mention: Mention) => void",
+            "required": false
+          }
+        ]
+      }
+    ],
+    "hooks": [
+      {
+        "name": "useMentions",
+        "description": "Get user's mentions",
+        "returns": "{ mentions: Mention[]; loading: boolean; refresh: () => void }"
+      },
+      {
+        "name": "useMentionSearch",
+        "description": "Search users for mention suggestions",
+        "returns": "{ users: User[]; search: (query: string) => void; loading: boolean }"
+      },
+      {
+        "name": "useUnreadMentionsCount",
+        "description": "Get unread mentions count",
+        "returns": "{ count: number; loading: boolean }"
+      },
+      {
+        "name": "useParseMentions",
+        "description": "Parse mentions from text",
+        "returns": "{ parse: (text: string) => Promise<User[]>; isLoading: boolean }"
+      }
+    ],
+    "pages": [
+      {
+        "name": "MentionsPage",
+        "route": "/mentions",
+        "description": "User's mentions page"
+      }
+    ]
+  },
+
+  "database": {
+    "tables": [
+      {
+        "name": "mentions",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "mentioned_user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "mentioner_user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "target_type",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "target_id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "content_preview",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "is_read",
+            "type": "boolean",
+            "nullable": false,
+            "default": "false"
+          },
+          {
+            "name": "read_at",
+            "type": "datetime",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_mentions_user",
+            "columns": ["mentioned_user_id"]
+          },
+          {
+            "name": "idx_mentions_target",
+            "columns": ["target_type", "target_id"]
+          },
+          {
+            "name": "idx_mentions_unread",
+            "columns": ["mentioned_user_id", "is_read"]
+          }
+        ]
+      }
+    ],
+    "migrations": [
+      {
+        "name": "create_mentions_table",
+        "sql": "CREATE TABLE IF NOT EXISTS mentions (...)"
+      }
+    ]
+  },
+
+  "integration": {
+    "steps": [
+      "1. Run database migration to create 'mentions' table",
+      "2. Add backend models in backend/app/db/models/mention.py",
+      "3. Add CRUD operations in backend/app/cruds/mention_crud.py",
+      "4. Register API routes in backend/app/api/router.py",
+      "5. Create frontend components in frontend/src/components/mentions/",
+      "6. Add API service in frontend/src/services/mentions.ts",
+      "7. Integrate mention parsing into comment and post services",
+      "8. Add notification when user is mentioned",
+      "9. Test mention parsing and notifications"
+    ],
+    "config_needed": [
+      "Integrate mention parsing into comment service",
+      "Integrate mention parsing into post service",
+      "Set up notification for new mentions"
+    ]
+  }
+}

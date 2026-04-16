@@ -1,0 +1,88 @@
+{
+  "_shared": true,
+  "description": "Shared API conventions for all modules",
+
+  "pagination": {
+    "type": "cursor",
+    "description": "Cursor-based pagination for efficient infinite scrolling",
+    "query_params": {
+      "cursor": {
+        "type": "string",
+        "nullable": true,
+        "description": "Opaque cursor string from previous response"
+      },
+      "limit": {
+        "type": "integer",
+        "default": 20,
+        "max": 100,
+        "description": "Number of items per page"
+      },
+      "order_by": {
+        "type": "string",
+        "default": "created_at",
+        "description": "Field to order by"
+      },
+      "order": {
+        "type": "string",
+        "enum": ["asc", "desc"],
+        "default": "desc",
+        "description": "Sort order"
+      }
+    },
+    "response": {
+      "items": "array",
+      "next_cursor": "string | null",
+      "has_more": "boolean",
+      "total_count": "integer | null (optional, only for first page)"
+    }
+  },
+
+  "response_format": {
+    "success_response": {
+      "success": true,
+      "data": "any",
+      "meta": {
+        "pagination": "Pagination | null"
+      },
+      "error": null
+    },
+    "error_response": {
+      "success": false,
+      "data": null,
+      "meta": null,
+      "error": {
+        "code": "string",
+        "message": "string",
+        "details": "object | null (optional)"
+      }
+    }
+  },
+
+  "error_codes": {
+    "AUTH_REQUIRED": "Authentication required",
+    "FORBIDDEN": "Permission denied",
+    "NOT_FOUND": "Resource not found",
+    "VALIDATION_ERROR": "Input validation failed",
+    "CONFLICT": "Resource conflict (e.g., duplicate)",
+    "RATE_LIMITED": "Too many requests",
+    "INTERNAL_ERROR": "Internal server error"
+  },
+
+  "common_fields": {
+    "audit": {
+      "created_at": "datetime",
+      "updated_at": "datetime",
+      "created_by": "integer (foreign key users.id, nullable)",
+      "updated_by": "integer (foreign key users.id, nullable)"
+    },
+    "soft_delete": {
+      "is_deleted": "boolean, default false",
+      "deleted_at": "datetime, nullable",
+      "deleted_by": "integer (foreign key users.id, nullable)"
+    },
+    "polymorphic_association": {
+      "content_type": "string (e.g., 'post', 'video', 'product')",
+      "content_id": "integer"
+    }
+  }
+}

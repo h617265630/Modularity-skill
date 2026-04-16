@@ -1,0 +1,473 @@
+{
+  "command": "/announcement-m",
+  "feature_name": "announcement_system",
+  "description": "System announcement system for broadcasting messages to all users",
+
+  "backend": {
+    "routes": [
+      {
+        "method": "POST",
+        "path": "/announcements",
+        "handler_name": "create_announcement",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/announcements",
+        "handler_name": "get_announcements",
+        "auth_required": false,
+        "pagination": "cursor"
+      },
+      {
+        "method": "GET",
+        "path": "/announcements/{id}",
+        "handler_name": "get_announcement",
+        "auth_required": false
+      },
+      {
+        "method": "PATCH",
+        "path": "/announcements/{id}",
+        "handler_name": "update_announcement",
+        "auth_required": true
+      },
+      {
+        "method": "DELETE",
+        "path": "/announcements/{id}",
+        "handler_name": "delete_announcement",
+        "auth_required": true
+      },
+      {
+        "method": "POST",
+        "path": "/announcements/{id}/pin",
+        "handler_name": "pin_announcement",
+        "auth_required": true
+      },
+      {
+        "method": "POST",
+        "path": "/announcements/{id}/unpin",
+        "handler_name": "unpin_announcement",
+        "auth_required": true
+      }
+    ],
+    "services": [
+      {
+        "name": "AnnouncementService",
+        "description": "Business logic for announcements",
+        "methods": [
+          {
+            "name": "create_announcement",
+            "description": "Create new system announcement",
+            "async": true
+          },
+          {
+            "name": "publish_announcement",
+            "description": "Publish announcement to users",
+            "async": true
+          },
+          {
+            "name": "get_active_announcements",
+            "description": "Get currently active announcements",
+            "async": true
+          },
+          {
+            "name": "mark_as_read",
+            "description": "Mark announcement as read by user",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "models": [
+      {
+        "name": "Announcement",
+        "table_name": "announcements",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "title",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "content",
+            "type": "text",
+            "nullable": false
+          },
+          {
+            "name": "type",
+            "type": "string",
+            "nullable": false,
+            "default": "'info'"
+          },
+          {
+            "name": "priority",
+            "type": "string",
+            "nullable": false,
+            "default": "'normal'"
+          },
+          {
+            "name": "is_pinned",
+            "type": "boolean",
+            "nullable": false,
+            "default": "false"
+          },
+          {
+            "name": "is_active",
+            "type": "boolean",
+            "nullable": false,
+            "default": "true"
+          },
+          {
+            "name": "start_at",
+            "type": "datetime",
+            "nullable": true
+          },
+          {
+            "name": "end_at",
+            "type": "datetime",
+            "nullable": true
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          },
+          {
+            "name": "updated_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_announcements_active",
+            "columns": ["is_active"]
+          },
+          {
+            "name": "idx_announcements_pinned",
+            "columns": ["is_pinned"]
+          },
+          {
+            "name": "idx_announcements_dates",
+            "columns": ["start_at", "end_at"]
+          }
+        ]
+      },
+      {
+        "name": "AnnouncementRead",
+        "table_name": "announcement_reads",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "announcement_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "announcements.id",
+            "index": true
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id",
+            "index": true
+          },
+          {
+            "name": "read_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_announcement_reads_user_announcement",
+            "columns": ["user_id", "announcement_id"],
+            "unique": true
+          }
+        ]
+      }
+    ],
+    "curds": [
+      {
+        "name": "announcement_crud",
+        "model_name": "Announcement",
+        "operations": ["create", "read", "update", "delete"]
+      },
+      {
+        "name": "announcement_read_crud",
+        "model_name": "AnnouncementRead",
+        "operations": ["create", "read"]
+      }
+    ]
+  },
+
+  "frontend": {
+    "components": [
+      {
+        "name": "AnnouncementBanner",
+        "description": "Banner displaying active announcement",
+        "props": [
+          {
+            "name": "announcement",
+            "type": "Announcement",
+            "required": true
+          },
+          {
+            "name": "onDismiss",
+            "type": "() => void",
+            "required": false
+          },
+          {
+            "name": "onReadMore",
+            "type": "() => void",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "AnnouncementList",
+        "description": "List of announcements",
+        "props": [
+          {
+            "name": "announcements",
+            "type": "Announcement[]",
+            "required": true
+          },
+          {
+            "name": "onPin",
+            "type": "(id: string) => void",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "AnnouncementEditor",
+        "description": "Editor for creating/editing announcements",
+        "props": [
+          {
+            "name": "initialData",
+            "type": "Partial<Announcement>",
+            "required": false
+          },
+          {
+            "name": "onSave",
+            "type": "(data: AnnouncementData) => void",
+            "required": true
+          },
+          {
+            "name": "onPublish",
+            "type": "(data: AnnouncementData) => void",
+            "required": false
+          }
+        ]
+      }
+    ],
+    "hooks": [
+      {
+        "name": "useAnnouncements",
+        "description": "Get announcements",
+        "returns": "{ announcements: Announcement[]; loading: boolean; refresh: () => void }"
+      },
+      {
+        "name": "useActiveAnnouncements",
+        "description": "Get currently active announcements",
+        "returns": "{ announcements: Announcement[]; loading: boolean }"
+      },
+      {
+        "name": "useMarkAnnouncementRead",
+        "description": "Mark announcement as read",
+        "returns": "{ markRead: (id: string) => Promise<void>; isLoading: boolean }"
+      },
+      {
+        "name": "useCreateAnnouncement",
+        "description": "Create announcement (admin)",
+        "returns": "{ create: (data: AnnouncementData) => Promise<Announcement>; isLoading: boolean }"
+      }
+    ],
+    "pages": [
+      {
+        "name": "AnnouncementsPage",
+        "route": "/announcements",
+        "description": "All announcements page"
+      },
+      {
+        "name": "AdminAnnouncementsPage",
+        "route": "/admin/announcements",
+        "description": "Admin announcement management page"
+      }
+    ]
+  },
+
+  "database": {
+    "tables": [
+      {
+        "name": "announcements",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "title",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "content",
+            "type": "text",
+            "nullable": false
+          },
+          {
+            "name": "type",
+            "type": "string",
+            "nullable": false,
+            "default": "'info'"
+          },
+          {
+            "name": "priority",
+            "type": "string",
+            "nullable": false,
+            "default": "'normal'"
+          },
+          {
+            "name": "is_pinned",
+            "type": "boolean",
+            "nullable": false,
+            "default": "false"
+          },
+          {
+            "name": "is_active",
+            "type": "boolean",
+            "nullable": false,
+            "default": "true"
+          },
+          {
+            "name": "start_at",
+            "type": "datetime",
+            "nullable": true
+          },
+          {
+            "name": "end_at",
+            "type": "datetime",
+            "nullable": true
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "updated_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_announcements_active",
+            "columns": ["is_active"]
+          },
+          {
+            "name": "idx_announcements_pinned",
+            "columns": ["is_pinned"]
+          },
+          {
+            "name": "idx_announcements_dates",
+            "columns": ["start_at", "end_at"]
+          }
+        ]
+      },
+      {
+        "name": "announcement_reads",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "announcement_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "announcements.id"
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "read_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_announcement_reads_user_announcement",
+            "columns": ["user_id", "announcement_id"],
+            "unique": true
+          }
+        ]
+      }
+    ],
+    "migrations": [
+      {
+        "name": "create_announcements_table",
+        "sql": "CREATE TABLE IF NOT EXISTS announcements (...)"
+      },
+      {
+        "name": "create_announcement_reads_table",
+        "sql": "CREATE TABLE IF NOT EXISTS announcement_reads (...)"
+      }
+    ]
+  },
+
+  "integration": {
+    "steps": [
+      "1. Run database migration to create tables",
+      "2. Add backend models in backend/app/db/models/announcement.py",
+      "3. Add CRUD operations in backend/app/cruds/announcement_crud.py",
+      "4. Register API routes in backend/app/api/router.py",
+      "5. Create frontend components in frontend/src/components/announcements/",
+      "6. Add API service in frontend/src/services/announcements.ts",
+      "7. Integrate AnnouncementBanner into app layout",
+      "8. Test announcement creation and display"
+    ],
+    "config_needed": [
+      "Configure announcement types and their display styles",
+      "Set up role-based access for announcement creation",
+      "Configure default announcement duration"
+    ]
+  }
+}

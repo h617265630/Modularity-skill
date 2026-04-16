@@ -1,0 +1,550 @@
+{
+  "command": "/post-m",
+  "feature_name": "post_system",
+  "description": "Post/article publishing system with full CRUD support",
+
+  "backend": {
+    "routes": [
+      {
+        "method": "POST",
+        "path": "/posts",
+        "handler_name": "create_post",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/posts/{id}",
+        "handler_name": "get_post",
+        "auth_required": false
+      },
+      {
+        "method": "GET",
+        "path": "/posts",
+        "handler_name": "get_posts",
+        "auth_required": false,
+        "pagination": "cursor",
+        "query_params": ["cursor", "limit", "order_by", "order"]
+      },
+      {
+        "method": "GET",
+        "path": "/posts/{id}/stats",
+        "handler_name": "get_post_stats",
+        "auth_required": false
+      },
+      {
+        "method": "PATCH",
+        "path": "/posts/{id}",
+        "handler_name": "update_post",
+        "auth_required": true
+      },
+      {
+        "method": "DELETE",
+        "path": "/posts/{id}",
+        "handler_name": "delete_post",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/users/{user_id}/posts",
+        "handler_name": "get_user_posts",
+        "auth_required": false,
+        "pagination": "cursor",
+        "query_params": ["cursor", "limit", "order_by", "order"]
+      }
+    ],
+    "services": [
+      {
+        "name": "PostService",
+        "description": "Business logic for post operations",
+        "methods": [
+          {
+            "name": "create_post",
+            "description": "Create new post with content",
+            "async": true
+          },
+          {
+            "name": "update_post",
+            "description": "Update existing post",
+            "async": true
+          },
+          {
+            "name": "publish_post",
+            "description": "Publish a draft post",
+            "async": true
+          },
+          {
+            "name": "get_post_with_author",
+            "description": "Get post with author information (stats fetched separately)",
+            "async": true
+          },
+          {
+            "name": "get_published_posts",
+            "description": "Get paginated published posts with cursor-based pagination",
+            "async": true
+          },
+          {
+            "name": "get_user_posts",
+            "description": "Get paginated posts by user with stats",
+            "async": true
+          },
+          {
+            "name": "get_post_stats",
+            "description": "Get like_count, comment_count, view_count for a post",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "models": [
+      {
+        "name": "Post",
+        "table_name": "posts",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id",
+            "index": true
+          },
+          {
+            "name": "title",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "slug",
+            "type": "string",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "status",
+            "type": "string",
+            "nullable": false,
+            "default": "'draft'"
+          },
+          {
+            "name": "view_count",
+            "type": "integer",
+            "nullable": false,
+            "default": "0"
+          },
+          {
+            "name": "published_at",
+            "type": "datetime",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          },
+          {
+            "name": "updated_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "updated_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_posts_user",
+            "columns": ["user_id"]
+          },
+          {
+            "name": "idx_posts_slug",
+            "columns": ["slug"],
+            "unique": true
+          },
+          {
+            "name": "idx_posts_status",
+            "columns": ["status"]
+          }
+        ]
+      },
+      {
+        "name": "PostContent",
+        "table_name": "post_contents",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "post_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "posts.id",
+            "index": true
+          },
+          {
+            "name": "content",
+            "type": "text",
+            "nullable": false
+          },
+          {
+            "name": "excerpt",
+            "type": "text",
+            "nullable": true
+          },
+          {
+            "name": "cover_image_url",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          },
+          {
+            "name": "updated_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_post_contents_post",
+            "columns": ["post_id"],
+            "unique": true
+          }
+        ]
+      }
+    ],
+    "curds": [
+      {
+        "name": "post_crud",
+        "model_name": "Post",
+        "operations": ["create", "read", "update", "delete"]
+      },
+      {
+        "name": "post_content_crud",
+        "model_name": "PostContent",
+        "operations": ["create", "read", "update"]
+      }
+    ]
+  },
+
+  "frontend": {
+    "components": [
+      {
+        "name": "PostCard",
+        "description": "Post preview card for lists",
+        "props": [
+          {
+            "name": "post",
+            "type": "Post",
+            "required": true
+          },
+          {
+            "name": "onClick",
+            "type": "() => void",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "PostEditor",
+        "description": "Rich text editor for creating/editing posts",
+        "props": [
+          {
+            "name": "initialData",
+            "type": "Partial<Post>",
+            "required": false
+          },
+          {
+            "name": "onSave",
+            "type": "(data: PostData) => void",
+            "required": true
+          },
+          {
+            "name": "onPublish",
+            "type": "(data: PostData) => void",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "PostView",
+        "description": "Full post display view",
+        "props": [
+          {
+            "name": "postId",
+            "type": "string",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "PostList",
+        "description": "Paginated list of posts with infinite scroll support",
+        "props": [
+          {
+            "name": "userId",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "categoryId",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "onLoadMore",
+            "type": "() => void",
+            "required": false
+          },
+          {
+            "name": "hasMore",
+            "type": "boolean",
+            "required": false
+          }
+        ]
+      }
+    ],
+    "hooks": [
+      {
+        "name": "usePost",
+        "description": "Fetch single post by ID with author info",
+        "returns": "{ post: Post | null; loading: boolean; error: string | null }"
+      },
+      {
+        "name": "usePostStats",
+        "description": "Fetch post stats (likes, comments, views)",
+        "returns": "{ stats: PostStats | null; loading: boolean }"
+      },
+      {
+        "name": "usePosts",
+        "description": "Fetch paginated posts with cursor-based pagination",
+        "returns": "{ posts: Post[]; nextCursor: string | null; hasMore: boolean; loading: boolean }"
+      },
+      {
+        "name": "useCreatePost",
+        "description": "Create new post",
+        "returns": "{ create: (data: PostData) => Promise<ApiResponse<Post>>; isLoading: boolean }"
+      },
+      {
+        "name": "useUpdatePost",
+        "description": "Update existing post",
+        "returns": "{ update: (id: string, data: Partial<PostData>) => Promise<ApiResponse<Post>>; isLoading: boolean }"
+      },
+      {
+        "name": "useDeletePost",
+        "description": "Delete post",
+        "returns": "{ delete: (id: string) => Promise<ApiResponse<void>>; isLoading: boolean }"
+      }
+    ],
+    "pages": [
+      {
+        "name": "PostDetailPage",
+        "route": "/posts/{slug}",
+        "description": "Single post page"
+      },
+      {
+        "name": "CreatePostPage",
+        "route": "/posts/new",
+        "description": "Create new post page"
+      },
+      {
+        "name": "EditPostPage",
+        "route": "/posts/{id}/edit",
+        "description": "Edit existing post"
+      },
+      {
+        "name": "UserPostsPage",
+        "route": "/users/{user_id}/posts",
+        "description": "User's posts listing"
+      }
+    ]
+  },
+
+  "database": {
+    "tables": [
+      {
+        "name": "posts",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "title",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "slug",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "status",
+            "type": "string",
+            "nullable": false,
+            "default": "'draft'"
+          },
+          {
+            "name": "view_count",
+            "type": "integer",
+            "nullable": false,
+            "default": "0"
+          },
+          {
+            "name": "published_at",
+            "type": "datetime",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "updated_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "updated_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_posts_user",
+            "columns": ["user_id"]
+          },
+          {
+            "name": "idx_posts_slug",
+            "columns": ["slug"],
+            "unique": true
+          },
+          {
+            "name": "idx_posts_status",
+            "columns": ["status"]
+          }
+        ]
+      },
+      {
+        "name": "post_contents",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "post_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "posts.id"
+          },
+          {
+            "name": "content",
+            "type": "text",
+            "nullable": false
+          },
+          {
+            "name": "excerpt",
+            "type": "text",
+            "nullable": true
+          },
+          {
+            "name": "cover_image_url",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "updated_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_post_contents_post",
+            "columns": ["post_id"],
+            "unique": true
+          }
+        ]
+      }
+    ],
+    "migrations": [
+      {
+        "name": "create_posts_table",
+        "sql": "CREATE TABLE IF NOT EXISTS posts (...)"
+      },
+      {
+        "name": "create_post_contents_table",
+        "sql": "CREATE TABLE IF NOT EXISTS post_contents (...)"
+      }
+    ]
+  },
+
+  "integration": {
+    "steps": [
+      "1. Run database migration to create 'posts' and 'post_contents' tables",
+      "2. Add backend models in backend/app/db/models/post.py",
+      "3. Add CRUD operations in backend/app/cruds/post_crud.py",
+      "4. Register API routes in backend/app/api/router.py",
+      "5. Create frontend components in frontend/src/components/posts/",
+      "6. Add API service in frontend/src/services/posts.ts",
+      "7. Create rich text editor integration",
+      "8. Test post CRUD operations"
+    ],
+    "config_needed": [
+      "Set up rich text editor (e.g., TipTap, Quill)",
+      "Configure image upload endpoint",
+      "Set up slug generation utility"
+    ]
+  }
+}

@@ -1,0 +1,361 @@
+{
+  "command": "/hot-search-m",
+  "feature_name": "hot_search_system",
+  "description": "Hot search ranking system showing trending search terms",
+
+  "backend": {
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/hot-search",
+        "handler_name": "get_hot_searches",
+        "auth_required": false
+      },
+      {
+        "method": "POST",
+        "path": "/hot-search/record",
+        "handler_name": "record_search",
+        "auth_required": false
+      },
+      {
+        "method": "GET",
+        "path": "/hot-search/keywords",
+        "handler_name": "get_search_keywords",
+        "auth_required": false
+      }
+    ],
+    "services": [
+      {
+        "name": "HotSearchService",
+        "description": "Business logic for hot search operations",
+        "methods": [
+          {
+            "name": "record_search",
+            "description": "Record a search action for trending",
+            "async": true
+          },
+          {
+            "name": "get_hot_searches",
+            "description": "Get current hot search rankings",
+            "async": true
+          },
+          {
+            "name": "update_trending_scores",
+            "description": "Update trending scores for all keywords",
+            "async": true
+          },
+          {
+            "name": "get_search_suggestions",
+            "description": "Get search suggestions based on trending",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "models": [
+      {
+        "name": "HotSearch",
+        "table_name": "hot_searches",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "keyword",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "rank",
+            "type": "integer",
+            "nullable": true
+          },
+          {
+            "name": "search_count",
+            "type": "integer",
+            "nullable": false,
+            "default": "0"
+          },
+          {
+            "name": "trend_score",
+            "type": "float",
+            "nullable": false,
+            "default": "0"
+          },
+          {
+            "name": "is_active",
+            "type": "boolean",
+            "nullable": false,
+            "default": "true"
+          },
+          {
+            "name": "last_updated",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_hot_searches_keyword",
+            "columns": ["keyword"],
+            "unique": true
+          },
+          {
+            "name": "idx_hot_searches_rank",
+            "columns": ["rank"]
+          },
+          {
+            "name": "idx_hot_searches_score",
+            "columns": ["trend_score"]
+          }
+        ]
+      },
+      {
+        "name": "SearchTrend",
+        "table_name": "search_trends",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "keyword",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "search_count",
+            "type": "integer",
+            "nullable": false,
+            "default": "1"
+          },
+          {
+            "name": "recorded_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_search_trends_keyword",
+            "columns": ["keyword"]
+          },
+          {
+            "name": "idx_search_trends_time",
+            "columns": ["recorded_at"]
+          }
+        ]
+      }
+    ],
+    "curds": [
+      {
+        "name": "hot_search_crud",
+        "model_name": "HotSearch",
+        "operations": ["create", "read", "update"]
+      },
+      {
+        "name": "search_trend_crud",
+        "model_name": "SearchTrend",
+        "operations": ["create", "read"]
+      }
+    ]
+  },
+
+  "frontend": {
+    "components": [
+      {
+        "name": "HotSearchList",
+        "description": "List of hot search keywords",
+        "props": [
+          {
+            "name": "hotSearches",
+            "type": "HotSearch[]",
+            "required": true
+          },
+          {
+            "name": "onClick",
+            "type": "(keyword: string) => void",
+            "required": true
+          },
+          {
+            "name": "maxItems",
+            "type": "number",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "HotSearchSidebar",
+        "description": "Sidebar widget showing hot searches",
+        "props": [
+          {
+            "name": "onSelect",
+            "type": "(keyword: string) => void",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "TrendingBadge",
+        "description": "Badge showing trending status",
+        "props": [
+          {
+            "name": "trend",
+            "type": "'up' | 'down' | 'new'",
+            "required": true
+          }
+        ]
+      }
+    ],
+    "hooks": [
+      {
+        "name": "useHotSearch",
+        "description": "Get hot search list",
+        "returns": "{ hotSearches: HotSearch[]; loading: boolean; refresh: () => void }"
+      },
+      {
+        "name": "useRecordSearch",
+        "description": "Record a search for trending",
+        "returns": "{ record: (keyword: string) => void }"
+      }
+    ],
+    "pages": []
+  },
+
+  "database": {
+    "tables": [
+      {
+        "name": "hot_searches",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "keyword",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "rank",
+            "type": "integer",
+            "nullable": true
+          },
+          {
+            "name": "search_count",
+            "type": "integer",
+            "nullable": false,
+            "default": "0"
+          },
+          {
+            "name": "trend_score",
+            "type": "float",
+            "nullable": false,
+            "default": "0"
+          },
+          {
+            "name": "is_active",
+            "type": "boolean",
+            "nullable": false,
+            "default": "true"
+          },
+          {
+            "name": "last_updated",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_hot_searches_keyword",
+            "columns": ["keyword"],
+            "unique": true
+          },
+          {
+            "name": "idx_hot_searches_rank",
+            "columns": ["rank"]
+          },
+          {
+            "name": "idx_hot_searches_score",
+            "columns": ["trend_score"]
+          }
+        ]
+      },
+      {
+        "name": "search_trends",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "keyword",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "search_count",
+            "type": "integer",
+            "nullable": false,
+            "default": "1"
+          },
+          {
+            "name": "recorded_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_search_trends_keyword",
+            "columns": ["keyword"]
+          },
+          {
+            "name": "idx_search_trends_time",
+            "columns": ["recorded_at"]
+          }
+        ]
+      }
+    ],
+    "migrations": [
+      {
+        "name": "create_hot_searches_table",
+        "sql": "CREATE TABLE IF NOT EXISTS hot_searches (...)"
+      },
+      {
+        "name": "create_search_trends_table",
+        "sql": "CREATE TABLE IF NOT EXISTS search_trends (...)"
+      }
+    ]
+  },
+
+  "integration": {
+    "steps": [
+      "1. Run database migration to create tables",
+      "2. Add backend models in backend/app/db/models/hot_search.py",
+      "3. Add CRUD operations in backend/app/cruds/hot_search_crud.py",
+      "4. Register API routes in backend/app/api/router.py",
+      "5. Create frontend components in frontend/src/components/hot-search/",
+      "6. Add API service in frontend/src/services/hot-search.ts",
+      "7. Integrate search recording into search service",
+      "8. Set up scheduled job to update trending scores",
+      "9. Test hot search display and ranking"
+    ],
+    "config_needed": [
+      "Configure trending algorithm weights",
+      "Set up scheduled job for score updates",
+      "Configure how many items to show in hot search list"
+    ]
+  }
+}

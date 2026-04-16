@@ -1,0 +1,402 @@
+{
+  "command": "/login-log-m",
+  "feature_name": "login_log_system",
+  "description": "Login history and device management system for security",
+
+  "backend": {
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/auth/login-history",
+        "handler_name": "get_login_history",
+        "auth_required": true,
+        "pagination": "cursor"
+      },
+      {
+        "method": "POST",
+        "path": "/auth/login-history/{id}/terminate",
+        "handler_name": "terminate_session",
+        "auth_required": true
+      },
+      {
+        "method": "POST",
+        "path": "/auth/login-history/terminate-all",
+        "handler_name": "terminate_all_sessions",
+        "auth_required": true
+      },
+      {
+        "method": "POST",
+        "path": "/auth/login-history/{id}/mark-trusted",
+        "handler_name": "mark_device_trusted",
+        "auth_required": true
+      }
+    ],
+    "services": [
+      {
+        "name": "LoginLogService",
+        "description": "Business logic for login history",
+        "methods": [
+          {
+            "name": "record_login",
+            "description": "Record successful login",
+            "async": true
+          },
+          {
+            "name": "record_failed_login",
+            "description": "Record failed login attempt",
+            "async": true
+          },
+          {
+            "name": "get_login_history",
+            "description": "Get user's login history",
+            "async": true
+          },
+          {
+            "name": "terminate_session",
+            "description": "Terminate specific session",
+            "async": true
+          },
+          {
+            "name": "terminate_all_other_sessions",
+            "description": "Terminate all sessions except current",
+            "async": true
+          },
+          {
+            "name": "detect_suspicious_activity",
+            "description": "Detect suspicious login patterns",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "models": [
+      {
+        "name": "LoginHistory",
+        "table_name": "login_history",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id",
+            "index": true
+          },
+          {
+            "name": "session_id",
+            "type": "string",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "ip_address",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "user_agent",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "device_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "browser",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "os",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "location",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "is_trusted",
+            "type": "boolean",
+            "nullable": false,
+            "default": "false"
+          },
+          {
+            "name": "login_status",
+            "type": "string",
+            "nullable": false,
+            "default": "'success'"
+          },
+          {
+            "name": "failure_reason",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          },
+          {
+            "name": "last_active_at",
+            "type": "datetime",
+            "nullable": true
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_login_history_user",
+            "columns": ["user_id"]
+          },
+          {
+            "name": "idx_login_history_session",
+            "columns": ["session_id"]
+          },
+          {
+            "name": "idx_login_history_created",
+            "columns": ["created_at"]
+          }
+        ]
+      }
+    ],
+    "curds": [
+      {
+        "name": "login_history_crud",
+        "model_name": "LoginHistory",
+        "operations": ["create", "read", "update"]
+      }
+    ]
+  },
+
+  "frontend": {
+    "components": [
+      {
+        "name": "LoginHistoryList",
+        "description": "List of login history entries",
+        "props": [
+          {
+            "name": "onTerminate",
+            "type": "(sessionId: string) => void",
+            "required": true
+          },
+          {
+            "name": "onTerminateAll",
+            "type": "() => void",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "LoginHistoryItem",
+        "description": "Single login history entry",
+        "props": [
+          {
+            "name": "entry",
+            "type": "LoginHistoryEntry",
+            "required": true
+          },
+          {
+            "name": "isCurrent",
+            "type": "boolean",
+            "required": false
+          },
+          {
+            "name": "onTerminate",
+            "type": "() => void",
+            "required": false
+          },
+          {
+            "name": "onMarkTrusted",
+            "type": "() => void",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "DeviceIcon",
+        "description": "Icon representing device type",
+        "props": [
+          {
+            "name": "deviceType",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "size",
+            "type": "'small' | 'medium' | 'large'",
+            "required": false
+          }
+        ]
+      }
+    ],
+    "hooks": [
+      {
+        "name": "useLoginHistory",
+        "description": "Get user's login history",
+        "returns": "{ history: LoginHistoryEntry[]; loading: boolean; refresh: () => void }"
+      },
+      {
+        "name": "useTerminateSession",
+        "description": "Terminate specific session",
+        "returns": "{ terminate: (sessionId: string) => Promise<void>; isLoading: boolean }"
+      },
+      {
+        "name": "useTerminateAllSessions",
+        "description": "Terminate all other sessions",
+        "returns": "{ terminateAll: () => Promise<void>; isLoading: boolean }"
+      }
+    ],
+    "pages": [
+      {
+        "name": "LoginHistoryPage",
+        "route": "/settings/login-history",
+        "description": "Login history and active sessions page"
+      }
+    ]
+  },
+
+  "database": {
+    "tables": [
+      {
+        "name": "login_history",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "session_id",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "ip_address",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "user_agent",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "device_type",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "browser",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "os",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "location",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "is_trusted",
+            "type": "boolean",
+            "nullable": false,
+            "default": "false"
+          },
+          {
+            "name": "login_status",
+            "type": "string",
+            "nullable": false,
+            "default": "'success'"
+          },
+          {
+            "name": "failure_reason",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "last_active_at",
+            "type": "datetime",
+            "nullable": true
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_login_history_user",
+            "columns": ["user_id"]
+          },
+          {
+            "name": "idx_login_history_session",
+            "columns": ["session_id"]
+          },
+          {
+            "name": "idx_login_history_created",
+            "columns": ["created_at"]
+          }
+        ]
+      }
+    ],
+    "migrations": [
+      {
+        "name": "create_login_history_table",
+        "sql": "CREATE TABLE IF NOT EXISTS login_history (...)"
+      }
+    ]
+  },
+
+  "integration": {
+    "steps": [
+      "1. Run database migration to create 'login_history' table",
+      "2. Add backend models in backend/app/db/models/login_history.py",
+      "3. Add CRUD operations in backend/app/cruds/login_history_crud.py",
+      "4. Register API routes in backend/app/api/router.py",
+      "5. Integrate login recording into auth service",
+      "6. Create frontend components in frontend/src/components/login-history/",
+      "7. Add API service in frontend/src/services/login-history.ts",
+      "8. Integrate into settings/security page",
+      "9. Test session termination functionality"
+    ],
+    "config_needed": [
+      "Configure session timeout settings",
+      "Set up IP geolocation service for login location",
+      "Configure trusted device cookie settings",
+      "Set up login history retention period"
+    ]
+  }
+}

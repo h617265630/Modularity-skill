@@ -1,0 +1,379 @@
+{
+  "command": "/draft-m",
+  "feature_name": "draft_system",
+  "description": "Auto-save draft system for content editing with version history",
+
+  "backend": {
+    "routes": [
+      {
+        "method": "POST",
+        "path": "/drafts",
+        "handler_name": "create_draft",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/drafts/{id}",
+        "handler_name": "get_draft",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/drafts",
+        "handler_name": "get_user_drafts",
+        "auth_required": true,
+        "pagination": "cursor"
+      },
+      {
+        "method": "PATCH",
+        "path": "/drafts/{id}",
+        "handler_name": "update_draft",
+        "auth_required": true
+      },
+      {
+        "method": "DELETE",
+        "path": "/drafts/{id}",
+        "handler_name": "delete_draft",
+        "auth_required": true
+      },
+      {
+        "method": "POST",
+        "path": "/drafts/{id}/publish",
+        "handler_name": "publish_draft",
+        "auth_required": true
+      }
+    ],
+    "services": [
+      {
+        "name": "DraftService",
+        "description": "Business logic for draft operations",
+        "methods": [
+          {
+            "name": "save_draft",
+            "description": "Save or update draft content",
+            "async": true
+          },
+          {
+            "name": "auto_save",
+            "description": "Auto-save with timestamp",
+            "async": true
+          },
+          {
+            "name": "get_draft_history",
+            "description": "Get version history for draft",
+            "async": true
+          },
+          {
+            "name": "restore_version",
+            "description": "Restore draft to previous version",
+            "async": true
+          },
+          {
+            "name": "publish_as_post",
+            "description": "Convert draft to published post",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "models": [
+      {
+        "name": "Draft",
+        "table_name": "drafts",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id",
+            "index": true
+          },
+          {
+            "name": "content_type",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "title",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "content",
+            "type": "text",
+            "nullable": true
+          },
+          {
+            "name": "metadata",
+            "type": "json",
+            "nullable": true
+          },
+          {
+            "name": "version",
+            "type": "integer",
+            "nullable": false,
+            "default": "1"
+          },
+          {
+            "name": "is_auto_save",
+            "type": "boolean",
+            "nullable": false,
+            "default": "false"
+          },
+          {
+            "name": "post_id",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "posts.id"
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          },
+          {
+            "name": "updated_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "updated_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_drafts_user",
+            "columns": ["user_id"]
+          },
+          {
+            "name": "idx_drafts_user_content_type",
+            "columns": ["user_id", "content_type"]
+          }
+        ]
+      }
+    ],
+    "curds": [
+      {
+        "name": "draft_crud",
+        "model_name": "Draft",
+        "operations": ["create", "read", "update", "delete"]
+      }
+    ]
+  },
+
+  "frontend": {
+    "components": [
+      {
+        "name": "DraftBadge",
+        "description": "Badge showing auto-save status",
+        "props": [
+          {
+            "name": "lastSaved",
+            "type": "Date",
+            "required": false
+          },
+          {
+            "name": "isSaving",
+            "type": "boolean",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "DraftList",
+        "description": "List of user's drafts",
+        "props": [
+          {
+            "name": "contentType",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "onSelect",
+            "type": "(draft: Draft) => void",
+            "required": true
+          },
+          {
+            "name": "onDelete",
+            "type": "(draft: Draft) => void",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "AutoSaveIndicator",
+        "description": "Visual indicator for auto-save status",
+        "props": [
+          {
+            "name": "status",
+            "type": "'idle' | 'saving' | 'saved' | 'error'",
+            "required": true
+          },
+          {
+            "name": "lastSavedAt",
+            "type": "Date",
+            "required": false
+          }
+        ]
+      }
+    ],
+    "hooks": [
+      {
+        "name": "useAutoSave",
+        "description": "Auto-save hook for editors",
+        "returns": "{ save: () => void; lastSaved: Date | null; isSaving: boolean }"
+      },
+      {
+        "name": "useDrafts",
+        "description": "Get user's drafts",
+        "returns": "{ drafts: Draft[]; loading: boolean; refresh: () => void }"
+      },
+      {
+        "name": "usePublishDraft",
+        "description": "Publish draft as post",
+        "returns": "{ publish: (draftId: string) => Promise<Post>; isLoading: boolean }"
+      }
+    ],
+    "pages": [
+      {
+        "name": "DraftsPage",
+        "route": "/drafts",
+        "description": "User's drafts listing page"
+      }
+    ]
+  },
+
+  "database": {
+    "tables": [
+      {
+        "name": "drafts",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "content_type",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "title",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "content",
+            "type": "text",
+            "nullable": true
+          },
+          {
+            "name": "metadata",
+            "type": "json",
+            "nullable": true
+          },
+          {
+            "name": "version",
+            "type": "integer",
+            "nullable": false,
+            "default": "1"
+          },
+          {
+            "name": "is_auto_save",
+            "type": "boolean",
+            "nullable": false,
+            "default": "false"
+          },
+          {
+            "name": "post_id",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "posts.id"
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "updated_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "updated_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_drafts_user",
+            "columns": ["user_id"]
+          },
+          {
+            "name": "idx_drafts_user_content_type",
+            "columns": ["user_id", "content_type"]
+          }
+        ]
+      }
+    ],
+    "migrations": [
+      {
+        "name": "create_drafts_table",
+        "sql": "CREATE TABLE IF NOT EXISTS drafts (...)"
+      }
+    ]
+  },
+
+  "integration": {
+    "steps": [
+      "1. Run database migration to create 'drafts' table",
+      "2. Add backend models in backend/app/db/models/draft.py",
+      "3. Add CRUD operations in backend/app/cruds/draft_crud.py",
+      "4. Register API routes in backend/app/api/router.py",
+      "5. Create frontend components in frontend/src/components/drafts/",
+      "6. Add API service in frontend/src/services/drafts.ts",
+      "7. Integrate auto-save hook into PostEditor",
+      "8. Test auto-save functionality"
+    ],
+    "config_needed": [
+      "Configure auto-save interval (recommended: 30 seconds)",
+      "Set up draft cleanup job for old auto-saves",
+      "Configure max drafts per user limit"
+    ]
+  }
+}

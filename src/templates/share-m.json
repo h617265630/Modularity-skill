@@ -1,0 +1,323 @@
+{
+  "command": "/share-m",
+  "feature_name": "share_system",
+  "description": "[DEPRECATED] Use /interaction-m instead. Share functionality is now part of unified interaction system. QR code generation can be added as a frontend utility.",
+  "deprecated": true,
+  "replaced_by": "interaction-m",
+
+  "backend": {
+    "routes": [
+      {
+        "method": "POST",
+        "path": "/shares",
+        "handler_name": "create_share",
+        "auth_required": false
+      },
+      {
+        "method": "GET",
+        "path": "/shares/{share_code}",
+        "handler_name": "get_share_by_code",
+        "auth_required": false
+      },
+      {
+        "method": "GET",
+        "path": "/shares/{target_type}/{target_id}/count",
+        "handler_name": "get_share_count",
+        "auth_required": false
+      },
+      {
+        "method": "POST",
+        "path": "/shares/generate-link",
+        "handler_name": "generate_share_link",
+        "auth_required": false
+      }
+    ],
+    "services": [
+      {
+        "name": "ShareService",
+        "description": "Business logic for share operations",
+        "methods": [
+          {
+            "name": "create_share_record",
+            "description": "Record a share action",
+            "async": true
+          },
+          {
+            "name": "generate_share_code",
+            "description": "Generate unique share code",
+            "async": true
+          },
+          {
+            "name": "get_share_link",
+            "description": "Get full share link with code",
+            "async": false
+          },
+          {
+            "name": "track_share_click",
+            "description": "Track when shared link is clicked",
+            "async": true
+          },
+          {
+            "name": "get_share_stats",
+            "description": "Get share statistics for content",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "models": [
+      {
+        "name": "Share",
+        "table_name": "shares",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "share_code",
+            "type": "string",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id",
+            "index": true
+          },
+          {
+            "name": "target_type",
+            "type": "string",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "target_id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "platform",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "click_count",
+            "type": "integer",
+            "nullable": false,
+            "default": "0"
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_shares_code",
+            "columns": ["share_code"],
+            "unique": true
+          },
+          {
+            "name": "idx_shares_target",
+            "columns": ["target_type", "target_id"]
+          }
+        ]
+      }
+    ],
+    "curds": [
+      {
+        "name": "share_crud",
+        "model_name": "Share",
+        "operations": ["create", "read"]
+      }
+    ]
+  },
+
+  "frontend": {
+    "components": [
+      {
+        "name": "ShareButton",
+        "description": "Share button that opens share panel",
+        "props": [
+          {
+            "name": "targetType",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "targetId",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "url",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "title",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "size",
+            "type": "'small' | 'medium' | 'large'",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "SharePanel",
+        "description": "Panel with multiple share options",
+        "props": [
+          {
+            "name": "targetType",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "targetId",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "visible",
+            "type": "boolean",
+            "required": false
+          },
+          {
+            "name": "onClose",
+            "type": "() => void",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "ShareQRCode",
+        "description": "QR code for share link",
+        "props": [
+          {
+            "name": "url",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "size",
+            "type": "number",
+            "required": false
+          }
+        ]
+      }
+    ],
+    "hooks": [
+      {
+        "name": "useShare",
+        "description": "Generate share link and track shares",
+        "returns": "{ shareLink: string; share: () => void; isLoading: boolean }"
+      },
+      {
+        "name": "useShareCount",
+        "description": "Get share count for target",
+        "returns": "{ count: number; loading: boolean }"
+      }
+    ],
+    "pages": []
+  },
+
+  "database": {
+    "tables": [
+      {
+        "name": "shares",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "share_code",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "target_type",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "target_id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "platform",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "click_count",
+            "type": "integer",
+            "nullable": false,
+            "default": "0"
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_shares_code",
+            "columns": ["share_code"],
+            "unique": true
+          },
+          {
+            "name": "idx_shares_target",
+            "columns": ["target_type", "target_id"]
+          }
+        ]
+      }
+    ],
+    "migrations": [
+      {
+        "name": "create_shares_table",
+        "sql": "CREATE TABLE IF NOT EXISTS shares (...)"
+      }
+    ]
+  },
+
+  "integration": {
+    "steps": [
+      "1. Run database migration to create 'shares' table",
+      "2. Add backend models in backend/app/db/models/share.py",
+      "3. Add CRUD operations in backend/app/cruds/share_crud.py",
+      "4. Register API routes in backend/app/api/router.py",
+      "5. Create frontend components in frontend/src/components/share/",
+      "6. Add API service in frontend/src/services/share.ts",
+      "7. Integrate ShareButton component into content items",
+      "8. Add QR code generation library for ShareQRCode component",
+      "9. Test share link generation and click tracking"
+    ],
+    "config_needed": [
+      "Set up QR code generation library",
+      "Configure frontend domain for share link generation",
+      "Set up sharing platforms (WeChat, Weibo, etc.) API if needed"
+    ]
+  }
+}

@@ -1,0 +1,548 @@
+{
+  "command": "/notification",
+  "feature_name": "notification_system",
+  "description": "User notification system with real-time updates and notification preferences",
+
+  "backend": {
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/notifications",
+        "handler_name": "get_notifications",
+        "auth_required": true,
+        "pagination": "cursor"
+      },
+      {
+        "method": "GET",
+        "path": "/notifications/unread-count",
+        "handler_name": "get_unread_count",
+        "auth_required": true
+      },
+      {
+        "method": "PATCH",
+        "path": "/notifications/{id}/read",
+        "handler_name": "mark_as_read",
+        "auth_required": true
+      },
+      {
+        "method": "PATCH",
+        "path": "/notifications/read-all",
+        "handler_name": "mark_all_as_read",
+        "auth_required": true
+      },
+      {
+        "method": "DELETE",
+        "path": "/notifications/{id}",
+        "handler_name": "delete_notification",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/notifications/settings",
+        "handler_name": "get_notification_settings",
+        "auth_required": true
+      },
+      {
+        "method": "PUT",
+        "path": "/notifications/settings",
+        "handler_name": "update_notification_settings",
+        "auth_required": true
+      }
+    ],
+    "services": [
+      {
+        "name": "NotificationService",
+        "description": "Business logic for notification operations",
+        "methods": [
+          {
+            "name": "create_notification",
+            "description": "Create and send notification to user",
+            "async": true
+          },
+          {
+            "name": "broadcast_to_users",
+            "description": "Send notification to multiple users",
+            "async": true
+          },
+          {
+            "name": "get_notification_group",
+            "description": "Group related notifications (e.g., '5 people liked your post')",
+            "async": true
+          },
+          {
+            "name": "schedule_notification",
+            "description": "Schedule notification for future delivery",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "models": [
+      {
+        "name": "Notification",
+        "table_name": "notifications",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id",
+            "index": true
+          },
+          {
+            "name": "type",
+            "type": "string",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "title",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "content",
+            "type": "text",
+            "nullable": false
+          },
+          {
+            "name": "data",
+            "type": "json",
+            "nullable": true
+          },
+          {
+            "name": "is_read",
+            "type": "boolean",
+            "nullable": false,
+            "default": "false",
+            "index": true
+          },
+          {
+            "name": "read_at",
+            "type": "datetime",
+            "nullable": true
+          },
+          {
+            "name": "action_url",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "actor_id",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()",
+            "index": true
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_notifications_user_unread",
+            "columns": ["user_id", "is_read", "created_at"]
+          }
+        ]
+      },
+      {
+        "name": "NotificationSetting",
+        "table_name": "notification_settings",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id",
+            "index": true,
+            "unique": true
+          },
+          {
+            "name": "email_enabled",
+            "type": "boolean",
+            "nullable": false,
+            "default": "true"
+          },
+          {
+            "name": "push_enabled",
+            "type": "boolean",
+            "nullable": false,
+            "default": "true"
+          },
+          {
+            "name": "follow_notification",
+            "type": "boolean",
+            "nullable": false,
+            "default": "true"
+          },
+          {
+            "name": "like_notification",
+            "type": "boolean",
+            "nullable": false,
+            "default": "true"
+          },
+          {
+            "name": "comment_notification",
+            "type": "boolean",
+            "nullable": false,
+            "default": "true"
+          },
+          {
+            "name": "mention_notification",
+            "type": "boolean",
+            "nullable": false,
+            "default": "true"
+          },
+          {
+            "name": "digest_enabled",
+            "type": "boolean",
+            "nullable": false,
+            "default": "false"
+          },
+          {
+            "name": "digest_frequency",
+            "type": "string",
+            "nullable": false,
+            "default": "'daily'"
+          },
+          {
+            "name": "quiet_hours_start",
+            "type": "datetime",
+            "nullable": true
+          },
+          {
+            "name": "quiet_hours_end",
+            "type": "datetime",
+            "nullable": true
+          },
+          {
+            "name": "updated_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          }
+        ]
+      }
+    ],
+    "curds": [
+      {
+        "name": "notification_crud",
+        "model_name": "Notification",
+        "operations": ["create", "read", "update", "delete"]
+      },
+      {
+        "name": "notification_setting_crud",
+        "model_name": "NotificationSetting",
+        "operations": ["create", "read", "update"]
+      }
+    ]
+  },
+
+  "frontend": {
+    "components": [
+      {
+        "name": "NotificationBell",
+        "description": "Notification bell icon with unread badge",
+        "props": [
+          {
+            "name": "className",
+            "type": "string",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "NotificationDropdown",
+        "description": "Dropdown list showing recent notifications",
+        "props": [
+          {
+            "name": "limit",
+            "type": "number",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "NotificationItem",
+        "description": "Single notification item display",
+        "props": [
+          {
+            "name": "notification",
+            "type": "Notification",
+            "required": true
+          },
+          {
+            "name": "onRead",
+            "type": "(id: number) => void",
+            "required": false
+          },
+          {
+            "name": "onDelete",
+            "type": "(id: number) => void",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "NotificationList",
+        "description": "Full notification list page",
+        "props": []
+      },
+      {
+        "name": "NotificationSettings",
+        "description": "Notification preferences form",
+        "props": []
+      }
+    ],
+    "hooks": [
+      {
+        "name": "useNotifications",
+        "description": "Fetch and manage user notifications",
+        "returns": "NotificationsState"
+      },
+      {
+        "name": "useUnreadCount",
+        "description": "Get unread notification count",
+        "returns": "{ count: number; loading: boolean }"
+      },
+      {
+        "name": "useMarkAsRead",
+        "description": "Mark notification(s) as read",
+        "returns": "MutationState"
+      },
+      {
+        "name": "useNotificationSettings",
+        "description": "Get and update notification settings",
+        "returns": "SettingsState"
+      }
+    ],
+    "pages": [
+      {
+        "name": "NotificationsPage",
+        "route": "/notifications",
+        "description": "Full notification center page"
+      },
+      {
+        "name": "NotificationSettingsPage",
+        "route": "/settings/notifications",
+        "description": "Notification preferences settings page"
+      }
+    ]
+  },
+
+  "database": {
+    "tables": [
+      {
+        "name": "notifications",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "type",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "title",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "content",
+            "type": "text",
+            "nullable": false
+          },
+          {
+            "name": "data",
+            "type": "json",
+            "nullable": true
+          },
+          {
+            "name": "is_read",
+            "type": "boolean",
+            "nullable": false,
+            "default": "false"
+          },
+          {
+            "name": "read_at",
+            "type": "datetime",
+            "nullable": true
+          },
+          {
+            "name": "action_url",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "actor_id",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_notifications_user_unread",
+            "columns": ["user_id", "is_read", "created_at"]
+          }
+        ]
+      },
+      {
+        "name": "notification_settings",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "email_enabled",
+            "type": "boolean",
+            "nullable": false,
+            "default": "true"
+          },
+          {
+            "name": "push_enabled",
+            "type": "boolean",
+            "nullable": false,
+            "default": "true"
+          },
+          {
+            "name": "follow_notification",
+            "type": "boolean",
+            "nullable": false,
+            "default": "true"
+          },
+          {
+            "name": "like_notification",
+            "type": "boolean",
+            "nullable": false,
+            "default": "true"
+          },
+          {
+            "name": "comment_notification",
+            "type": "boolean",
+            "nullable": false,
+            "default": "true"
+          },
+          {
+            "name": "mention_notification",
+            "type": "boolean",
+            "nullable": false,
+            "default": "true"
+          },
+          {
+            "name": "digest_enabled",
+            "type": "boolean",
+            "nullable": false,
+            "default": "false"
+          },
+          {
+            "name": "digest_frequency",
+            "type": "string",
+            "nullable": false,
+            "default": "'daily'"
+          },
+          {
+            "name": "quiet_hours_start",
+            "type": "datetime",
+            "nullable": true
+          },
+          {
+            "name": "quiet_hours_end",
+            "type": "datetime",
+            "nullable": true
+          },
+          {
+            "name": "updated_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_notification_settings_user",
+            "columns": ["user_id"],
+            "unique": true
+          }
+        ]
+      }
+    ],
+    "migrations": [
+      {
+        "name": "create_notifications_table",
+        "sql": "CREATE TABLE IF NOT EXISTS notifications (...)"
+      },
+      {
+        "name": "create_notification_settings_table",
+        "sql": "CREATE TABLE IF NOT EXISTS notification_settings (...)"
+      }
+    ]
+  },
+
+  "integration": {
+    "steps": [
+      "1. Run database migration to create 'notifications' and 'notification_settings' tables",
+      "2. Add backend models in backend/app/db/models/notification.py",
+      "3. Add CRUD operations in backend/app/cruds/notification_crud.py",
+      "4. Register API routes in backend/app/api/router.py",
+      "5. Create frontend components in frontend/src/components/notifications/",
+      "6. Add API service in frontend/src/services/notifications.ts",
+      "7. Integrate NotificationBell into navbar/header",
+      "8. Set up WebSocket for real-time notification delivery",
+      "9. Configure email/push notification providers",
+      "10. Test notification creation, read, delete functionality"
+    ],
+    "config_needed": [
+      "Ensure users table exists for foreign key relationships",
+      "Configure authentication middleware for protected routes",
+      "Set up WebSocket server for real-time updates",
+      "Configure email service (SendGrid, SES, etc.) for email notifications",
+      "Configure push notification service (Firebase, OneSignal, etc.)",
+      "Set up Redis for notification caching and real-time pub/sub"
+    ]
+  }
+}

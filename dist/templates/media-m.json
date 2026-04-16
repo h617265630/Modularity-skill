@@ -1,0 +1,392 @@
+{
+  "command": "/media-m",
+  "feature_name": "media_system",
+  "description": "Media file upload and management system for images and videos",
+
+  "backend": {
+    "routes": [
+      {
+        "method": "POST",
+        "path": "/media/upload",
+        "handler_name": "upload_media",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/media/{id}",
+        "handler_name": "get_media",
+        "auth_required": false
+      },
+      {
+        "method": "DELETE",
+        "path": "/media/{id}",
+        "handler_name": "delete_media",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/media",
+        "handler_name": "get_user_media",
+        "auth_required": true,
+        "pagination": "cursor"
+      },
+      {
+        "method": "PATCH",
+        "path": "/media/{id}",
+        "handler_name": "update_media",
+        "auth_required": true
+      }
+    ],
+    "services": [
+      {
+        "name": "MediaService",
+        "description": "Business logic for media operations",
+        "methods": [
+          {
+            "name": "upload_file",
+            "description": "Upload and process media file",
+            "async": true
+          },
+          {
+            "name": "generate_thumbnail",
+            "description": "Generate thumbnail for image/video",
+            "async": true
+          },
+          {
+            "name": "get_user_media_list",
+            "description": "Get paginated media list for user",
+            "async": true
+          },
+          {
+            "name": "delete_file",
+            "description": "Delete media file and cleanup",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "models": [
+      {
+        "name": "Media",
+        "table_name": "media",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id",
+            "index": true
+          },
+          {
+            "name": "filename",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "original_filename",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "mime_type",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "file_size",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "url",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "thumbnail_url",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "width",
+            "type": "integer",
+            "nullable": true
+          },
+          {
+            "name": "height",
+            "type": "integer",
+            "nullable": true
+          },
+          {
+            "name": "duration",
+            "type": "float",
+            "nullable": true
+          },
+          {
+            "name": "alt_text",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "updated_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_media_user",
+            "columns": ["user_id"]
+          },
+          {
+            "name": "idx_media_mime_type",
+            "columns": ["mime_type"]
+          }
+        ]
+      }
+    ],
+    "curds": [
+      {
+        "name": "media_crud",
+        "model_name": "Media",
+        "operations": ["create", "read", "update", "delete"]
+      }
+    ]
+  },
+
+  "frontend": {
+    "components": [
+      {
+        "name": "ImageUpload",
+        "description": "Image upload component with preview",
+        "props": [
+          {
+            "name": "onUpload",
+            "type": "(file: File) => void",
+            "required": true
+          },
+          {
+            "name": "maxSize",
+            "type": "number",
+            "required": false
+          },
+          {
+            "name": "accept",
+            "type": "string",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "MediaGallery",
+        "description": "Grid display of user's media files",
+        "props": [
+          {
+            "name": "media",
+            "type": "Media[]",
+            "required": true
+          },
+          {
+            "name": "onSelect",
+            "type": "(media: Media) => void",
+            "required": false
+          },
+          {
+            "name": "onDelete",
+            "type": "(media: Media) => void",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "MediaUploader",
+        "description": "Full media uploader with progress",
+        "props": [
+          {
+            "name": "onComplete",
+            "type": "(media: Media) => void",
+            "required": true
+          },
+          {
+            "name": "multiple",
+            "type": "boolean",
+            "required": false
+          },
+          {
+            "name": "accept",
+            "type": "string",
+            "required": false
+          }
+        ]
+      }
+    ],
+    "hooks": [
+      {
+        "name": "useMediaUpload",
+        "description": "Upload media file with progress",
+        "returns": "{ upload: (file: File) => Promise<Media>; progress: number; isLoading: boolean }"
+      },
+      {
+        "name": "useUserMedia",
+        "description": "Fetch user's media library",
+        "returns": "{ media: Media[]; loading: boolean; loadMore: () => void }"
+      },
+      {
+        "name": "useMediaDelete",
+        "description": "Delete media file",
+        "returns": "{ remove: (id: string) => Promise<void>; isLoading: boolean }"
+      }
+    ],
+    "pages": [
+      {
+        "name": "MediaLibraryPage",
+        "route": "/media",
+        "description": "User's media library page"
+      }
+    ]
+  },
+
+  "database": {
+    "tables": [
+      {
+        "name": "media",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "filename",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "original_filename",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "mime_type",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "file_size",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "url",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "thumbnail_url",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "width",
+            "type": "integer",
+            "nullable": true
+          },
+          {
+            "name": "height",
+            "type": "integer",
+            "nullable": true
+          },
+          {
+            "name": "duration",
+            "type": "float",
+            "nullable": true
+          },
+          {
+            "name": "alt_text",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "updated_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_media_user",
+            "columns": ["user_id"]
+          },
+          {
+            "name": "idx_media_mime_type",
+            "columns": ["mime_type"]
+          }
+        ]
+      }
+    ],
+    "migrations": [
+      {
+        "name": "create_media_table",
+        "sql": "CREATE TABLE IF NOT EXISTS media (...)"
+      }
+    ]
+  },
+
+  "integration": {
+    "steps": [
+      "1. Run database migration to create 'media' table",
+      "2. Add backend models in backend/app/db/models/media.py",
+      "3. Add CRUD operations in backend/app/cruds/media_crud.py",
+      "4. Register API routes in backend/app/api/router.py",
+      "5. Configure file storage (S3, local, etc.)",
+      "6. Create frontend components in frontend/src/components/media/",
+      "7. Add API service in frontend/src/services/media.ts",
+      "8. Integrate upload component into editor",
+      "9. Test file upload with various formats"
+    ],
+    "config_needed": [
+      "Set up file storage (AWS S3, Cloudinary, or local)",
+      "Configure max file size limits",
+      "Set up image processing for thumbnails",
+      "Configure allowed mime types"
+    ]
+  }
+}

@@ -1,0 +1,172 @@
+{
+  "command": "/avatar-m",
+  "feature_name": "avatar_system",
+  "description": "Avatar management - reuses media-m for file storage. Stores avatar_media_id in user_profiles table.",
+
+  "dependencies": ["media-m"],
+
+  "backend": {
+    "routes": [
+      {
+        "method": "POST",
+        "path": "/avatar/upload",
+        "handler_name": "upload_avatar",
+        "auth_required": true,
+        "description": "Upload avatar image via media-m API and update user_profiles.avatar_media_id"
+      },
+      {
+        "method": "DELETE",
+        "path": "/avatar",
+        "handler_name": "delete_avatar",
+        "auth_required": true,
+        "description": "Clear user_profiles.avatar_media_id (does not delete media file)"
+      },
+      {
+        "method": "GET",
+        "path": "/avatar/{user_id}",
+        "handler_name": "get_avatar",
+        "auth_required": false,
+        "description": "Get avatar URL for user from user_profiles.avatar_media_id"
+      }
+    ],
+    "services": [
+      {
+        "name": "AvatarService",
+        "description": "Business logic for avatar operations - delegates to MediaService",
+        "methods": [
+          {
+            "name": "upload_avatar",
+            "description": "1. Call media-m.upload_media with content_type='avatar' 2. Update user_profiles.avatar_media_id",
+            "async": true
+          },
+          {
+            "name": "crop_avatar",
+            "description": "1. Call media-m.crop_media 2. Update user_profiles.avatar_media_id if changed",
+            "async": true
+          },
+          {
+            "name": "delete_avatar",
+            "description": "Clear user_profiles.avatar_media_id (keep media file for audit)",
+            "async": true
+          },
+          {
+            "name": "get_avatar_url",
+            "description": "Get avatar URL with size parameters from media-m CDN",
+            "async": false
+          }
+        ]
+      }
+    ],
+    "models": [],
+    "curds": []
+  },
+
+  "frontend": {
+    "components": [
+      {
+        "name": "AvatarUpload",
+        "description": "Avatar upload with cropping",
+        "props": [
+          {
+            "name": "currentAvatar",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "onUpload",
+            "type": "(file: File) => void",
+            "required": true
+          },
+          {
+            "name": "onCrop",
+            "type": "(croppedBlob: Blob) => void",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "AvatarCropper",
+        "description": "Image cropper for avatar",
+        "props": [
+          {
+            "name": "imageSrc",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "onCrop",
+            "type": "(croppedBlob: Blob) => void",
+            "required": true
+          },
+          {
+            "name": "onCancel",
+            "type": "() => void",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "AvatarDisplay",
+        "description": "Display avatar with fallback",
+        "props": [
+          {
+            "name": "src",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "name",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "size",
+            "type": "'small' | 'medium' | 'large' | 'xlarge'",
+            "required": false
+          }
+        ]
+      }
+    ],
+    "hooks": [
+      {
+        "name": "useAvatarUpload",
+        "description": "Upload avatar with cropping",
+        "returns": "{ upload: (file: File) => Promise<string>; isLoading: boolean; error: string | null }"
+      },
+      {
+        "name": "useAvatarDelete",
+        "description": "Delete avatar",
+        "returns": "{ remove: () => Promise<void>; isLoading: boolean }"
+      }
+    ],
+    "pages": [
+      {
+        "name": "AvatarSettingsPage",
+        "route": "/settings/avatar",
+        "description": "Avatar upload and settings page"
+      }
+    ]
+  },
+
+  "database": {
+    "tables": [],
+    "migrations": []
+  },
+
+  "integration": {
+    "steps": [
+      "1. Ensure user_profiles table has avatar_media_id field (add via user-m migration if needed)",
+      "2. Add backend routes in backend/app/api/router.py",
+      "3. Create frontend components in frontend/src/components/avatar/",
+      "4. Add API service in frontend/src/services/avatar.ts (wraps media service)",
+      "5. Integrate AvatarUpload into profile settings page",
+      "6. Test upload, crop, and delete functionality"
+    ],
+    "config_needed": [
+      "media-m must be installed first (dependency)",
+      "Set up image processing for avatar cropping (400x400 recommended)",
+      "Configure avatar size limits (e.g., max 5MB)",
+      "Configure allowed formats (JPEG, PNG, WebP)"
+    ]
+  }
+}

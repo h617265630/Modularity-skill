@@ -1,0 +1,289 @@
+{
+  "command": "/block-m",
+  "feature_name": "block_system",
+  "description": "User blocking system to prevent interactions",
+
+  "backend": {
+    "routes": [
+      {
+        "method": "POST",
+        "path": "/blocks",
+        "handler_name": "block_user",
+        "auth_required": true
+      },
+      {
+        "method": "DELETE",
+        "path": "/blocks/{user_id}",
+        "handler_name": "unblock_user",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/blocks",
+        "handler_name": "get_blocked_users",
+        "auth_required": true,
+        "pagination": "cursor"
+      },
+      {
+        "method": "GET",
+        "path": "/blocks/check/{user_id}",
+        "handler_name": "is_user_blocked",
+        "auth_required": true
+      }
+    ],
+    "services": [
+      {
+        "name": "BlockService",
+        "description": "Business logic for block operations",
+        "methods": [
+          {
+            "name": "block_user",
+            "description": "Block a user",
+            "async": true
+          },
+          {
+            "name": "unblock_user",
+            "description": "Unblock a user",
+            "async": true
+          },
+          {
+            "name": "get_blocked_users",
+            "description": "Get list of blocked users",
+            "async": true
+          },
+          {
+            "name": "is_blocked",
+            "description": "Check if user is blocked",
+            "async": true
+          },
+          {
+            "name": "check_interaction_allowed",
+            "description": "Check if interaction between users is allowed",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "models": [
+      {
+        "name": "BlockedUser",
+        "table_name": "blocked_users",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id",
+            "index": true
+          },
+          {
+            "name": "blocked_user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id",
+            "index": true
+          },
+          {
+            "name": "reason",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_blocked_users_user",
+            "columns": ["user_id"]
+          },
+          {
+            "name": "idx_blocked_users_blocked",
+            "columns": ["blocked_user_id"]
+          },
+          {
+            "name": "idx_blocked_users_pair",
+            "columns": ["user_id", "blocked_user_id"],
+            "unique": true
+          }
+        ]
+      }
+    ],
+    "curds": [
+      {
+        "name": "blocked_user_crud",
+        "model_name": "BlockedUser",
+        "operations": ["create", "read", "delete"]
+      }
+    ]
+  },
+
+  "frontend": {
+    "components": [
+      {
+        "name": "BlockButton",
+        "description": "Button to block/unblock user",
+        "props": [
+          {
+            "name": "userId",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "isBlocked",
+            "type": "boolean",
+            "required": false
+          },
+          {
+            "name": "onBlock",
+            "type": "() => void",
+            "required": true
+          },
+          {
+            "name": "onUnblock",
+            "type": "() => void",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "BlockedUsersList",
+        "description": "List of blocked users",
+        "props": [
+          {
+            "name": "onUnblock",
+            "type": "(userId: string) => void",
+            "required": true
+          }
+        ]
+      }
+    ],
+    "hooks": [
+      {
+        "name": "useBlockUser",
+        "description": "Block a user",
+        "returns": "{ block: (userId: string) => Promise<void>; isLoading: boolean }"
+      },
+      {
+        "name": "useUnblockUser",
+        "description": "Unblock a user",
+        "returns": "{ unblock: (userId: string) => Promise<void>; isLoading: boolean }"
+      },
+      {
+        "name": "useBlockedUsers",
+        "description": "Get blocked users list",
+        "returns": "{ users: User[]; loading: boolean; refresh: () => void }"
+      },
+      {
+        "name": "useIsBlocked",
+        "description": "Check if user is blocked",
+        "returns": "{ isBlocked: boolean; loading: boolean }"
+      }
+    ],
+    "pages": [
+      {
+        "name": "BlockedUsersPage",
+        "route": "/settings/blocked",
+        "description": "Blocked users management page"
+      }
+    ]
+  },
+
+  "database": {
+    "tables": [
+      {
+        "name": "blocked_users",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "blocked_user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "reason",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_blocked_users_user",
+            "columns": ["user_id"]
+          },
+          {
+            "name": "idx_blocked_users_blocked",
+            "columns": ["blocked_user_id"]
+          },
+          {
+            "name": "idx_blocked_users_pair",
+            "columns": ["user_id", "blocked_user_id"],
+            "unique": true
+          }
+        ]
+      }
+    ],
+    "migrations": [
+      {
+        "name": "create_blocked_users_table",
+        "sql": "CREATE TABLE IF NOT EXISTS blocked_users (...)"
+      }
+    ]
+  },
+
+  "integration": {
+    "steps": [
+      "1. Run database migration to create 'blocked_users' table",
+      "2. Add backend models in backend/app/db/models/block.py",
+      "3. Add CRUD operations in backend/app/cruds/block_crud.py",
+      "4. Register API routes in backend/app/api/router.py",
+      "5. Create frontend components in frontend/src/components/block/",
+      "6. Add API service in frontend/src/services/block.ts",
+      "7. Integrate block check into comment, message, and follow services",
+      "8. Test block functionality"
+    ],
+    "config_needed": [
+      "Integrate block check into comment service",
+      "Integrate block check into message/dm service",
+      "Integrate block check into follow service"
+    ]
+  }
+}

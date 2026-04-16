@@ -1,0 +1,641 @@
+{
+  "command": "/rbac-m",
+  "feature_name": "rbac_system",
+  "description": "Role-Based Access Control system for permissions management",
+
+  "backend": {
+    "routes": [
+      {
+        "method": "POST",
+        "path": "/roles",
+        "handler_name": "create_role",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/roles",
+        "handler_name": "get_roles",
+        "auth_required": true,
+        "pagination": "cursor"
+      },
+      {
+        "method": "GET",
+        "path": "/roles/{id}",
+        "handler_name": "get_role",
+        "auth_required": true
+      },
+      {
+        "method": "PATCH",
+        "path": "/roles/{id}",
+        "handler_name": "update_role",
+        "auth_required": true
+      },
+      {
+        "method": "DELETE",
+        "path": "/roles/{id}",
+        "handler_name": "delete_role",
+        "auth_required": true
+      },
+      {
+        "method": "POST",
+        "path": "/permissions",
+        "handler_name": "create_permission",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/permissions",
+        "handler_name": "get_permissions",
+        "auth_required": true
+      },
+      {
+        "method": "POST",
+        "path": "/roles/{role_id}/permissions",
+        "handler_name": "assign_permissions",
+        "auth_required": true
+      },
+      {
+        "method": "DELETE",
+        "path": "/roles/{role_id}/permissions/{permission_id}",
+        "handler_name": "remove_permission",
+        "auth_required": true
+      },
+      {
+        "method": "POST",
+        "path": "/users/{user_id}/roles",
+        "handler_name": "assign_user_role",
+        "auth_required": true
+      },
+      {
+        "method": "DELETE",
+        "path": "/users/{user_id}/roles/{role_id}",
+        "handler_name": "remove_user_role",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/users/{user_id}/permissions",
+        "handler_name": "get_user_permissions",
+        "auth_required": true
+      }
+    ],
+    "services": [
+      {
+        "name": "RoleService",
+        "description": "Business logic for roles",
+        "methods": [
+          {
+            "name": "create_role",
+            "description": "Create new role",
+            "async": true
+          },
+          {
+            "name": "get_role_by_name",
+            "description": "Get role by name",
+            "async": true
+          },
+          {
+            "name": "assign_role_to_user",
+            "description": "Assign role to user",
+            "async": true
+          },
+          {
+            "name": "remove_role_from_user",
+            "description": "Remove role from user",
+            "async": true
+          }
+        ]
+      },
+      {
+        "name": "PermissionService",
+        "description": "Business logic for permissions",
+        "methods": [
+          {
+            "name": "create_permission",
+            "description": "Create new permission",
+            "async": true
+          },
+          {
+            "name": "assign_permissions_to_role",
+            "description": "Assign permissions to role",
+            "async": true
+          },
+          {
+            "name": "get_user_permissions",
+            "description": "Get all permissions for user",
+            "async": true
+          },
+          {
+            "name": "has_permission",
+            "description": "Check if user has specific permission",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "models": [
+      {
+        "name": "Role",
+        "table_name": "roles",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "name",
+            "type": "string",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "is_system",
+            "type": "boolean",
+            "nullable": false,
+            "default": "false"
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_roles_name",
+            "columns": ["name"],
+            "unique": true
+          }
+        ]
+      },
+      {
+        "name": "Permission",
+        "table_name": "permissions",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "name",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "resource",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "action",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_permissions_resource_action",
+            "columns": ["resource", "action"]
+          }
+        ]
+      },
+      {
+        "name": "RolePermission",
+        "table_name": "role_permissions",
+        "fields": [
+          {
+            "name": "role_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "roles.id",
+            "index": true
+          },
+          {
+            "name": "permission_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "permissions.id",
+            "index": true
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_role_permissions_pair",
+            "columns": ["role_id", "permission_id"],
+            "unique": true
+          }
+        ]
+      },
+      {
+        "name": "UserRole",
+        "table_name": "user_roles",
+        "fields": [
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id",
+            "index": true
+          },
+          {
+            "name": "role_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "roles.id",
+            "index": true
+          },
+          {
+            "name": "assigned_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_user_roles_pair",
+            "columns": ["user_id", "role_id"],
+            "unique": true
+          }
+        ]
+      }
+    ],
+    "curds": [
+      {
+        "name": "role_crud",
+        "model_name": "Role",
+        "operations": ["create", "read", "update", "delete"]
+      },
+      {
+        "name": "permission_crud",
+        "model_name": "Permission",
+        "operations": ["create", "read", "delete"]
+      },
+      {
+        "name": "role_permission_crud",
+        "model_name": "RolePermission",
+        "operations": ["create", "read", "delete"]
+      },
+      {
+        "name": "user_role_crud",
+        "model_name": "UserRole",
+        "operations": ["create", "read", "delete"]
+      }
+    ]
+  },
+
+  "frontend": {
+    "components": [
+      {
+        "name": "RoleList",
+        "description": "List of available roles",
+        "props": [
+          {
+            "name": "roles",
+            "type": "Role[]",
+            "required": true
+          },
+          {
+            "name": "onEdit",
+            "type": "(role: Role) => void",
+            "required": false
+          },
+          {
+            "name": "onDelete",
+            "type": "(role: Role) => void",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "PermissionEditor",
+        "description": "Editor for assigning permissions to roles",
+        "props": [
+          {
+            "name": "role",
+            "type": "Role",
+            "required": true
+          },
+          {
+            "name": "permissions",
+            "type": "Permission[]",
+            "required": true
+          },
+          {
+            "name": "onSave",
+            "type": "(permissionIds: number[]) => void",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "UserRoleAssignment",
+        "description": "Component to assign roles to user",
+        "props": [
+          {
+            "name": "userId",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "onAssign",
+            "type": "(roleId: number) => void",
+            "required": true
+          },
+          {
+            "name": "onRemove",
+            "type": "(roleId: number) => void",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "PermissionCheck",
+        "description": "Check if user has permission",
+        "props": [
+          {
+            "name": "permission",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "children",
+            "type": "ReactNode",
+            "required": true
+          },
+          {
+            "name": "fallback",
+            "type": "ReactNode",
+            "required": false
+          }
+        ]
+      }
+    ],
+    "hooks": [
+      {
+        "name": "useRoles",
+        "description": "Get all roles",
+        "returns": "{ roles: Role[]; loading: boolean }"
+      },
+      {
+        "name": "usePermissions",
+        "description": "Get all permissions",
+        "returns": "{ permissions: Permission[]; loading: boolean }"
+      },
+      {
+        "name": "useUserPermissions",
+        "description": "Get user's permissions",
+        "returns": "{ permissions: string[]; loading: boolean }"
+      },
+      {
+        "name": "useAssignRole",
+        "description": "Assign role to user",
+        "returns": "{ assign: (userId: string, roleId: number) => Promise<void>; isLoading: boolean }"
+      },
+      {
+        "name": "useHasPermission",
+        "description": "Check if current user has permission",
+        "returns": "{ hasPermission: boolean; loading: boolean }"
+      }
+    ],
+    "pages": [
+      {
+        "name": "RolesPage",
+        "route": "/admin/roles",
+        "description": "Role management page"
+      },
+      {
+        "name": "PermissionsPage",
+        "route": "/admin/permissions",
+        "description": "Permission management page"
+      },
+      {
+        "name": "UserRolesPage",
+        "route": "/admin/users/{user_id}/roles",
+        "description": "User role assignment page"
+      }
+    ]
+  },
+
+  "database": {
+    "tables": [
+      {
+        "name": "roles",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "name",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "is_system",
+            "type": "boolean",
+            "nullable": false,
+            "default": "false"
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_roles_name",
+            "columns": ["name"],
+            "unique": true
+          }
+        ]
+      },
+      {
+        "name": "permissions",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "name",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "resource",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "action",
+            "type": "string",
+            "nullable": false
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_permissions_resource_action",
+            "columns": ["resource", "action"]
+          }
+        ]
+      },
+      {
+        "name": "role_permissions",
+        "fields": [
+          {
+            "name": "role_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "roles.id"
+          },
+          {
+            "name": "permission_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "permissions.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_role_permissions_pair",
+            "columns": ["role_id", "permission_id"],
+            "unique": true
+          }
+        ]
+      },
+      {
+        "name": "user_roles",
+        "fields": [
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "role_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "roles.id"
+          },
+          {
+            "name": "assigned_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_user_roles_pair",
+            "columns": ["user_id", "role_id"],
+            "unique": true
+          }
+        ]
+      }
+    ],
+    "migrations": [
+      {
+        "name": "create_roles_table",
+        "sql": "CREATE TABLE IF NOT EXISTS roles (...)"
+      },
+      {
+        "name": "create_permissions_table",
+        "sql": "CREATE TABLE IF NOT EXISTS permissions (...)"
+      },
+      {
+        "name": "create_role_permissions_table",
+        "sql": "CREATE TABLE IF NOT EXISTS role_permissions (...)"
+      },
+      {
+        "name": "create_user_roles_table",
+        "sql": "CREATE TABLE IF NOT EXISTS user_roles (...)"
+      }
+    ]
+  },
+
+  "integration": {
+    "steps": [
+      "1. Run database migration to create tables",
+      "2. Add backend models in backend/app/db/models/rbac.py",
+      "3. Add CRUD operations in backend/app/cruds/rbac_crud.py",
+      "4. Register API routes in backend/app/api/router.py",
+      "5. Create middleware for permission checking",
+      "6. Create frontend components in frontend/src/components/rbac/",
+      "7. Add API service in frontend/src/services/rbac.ts",
+      "8. Create PermissionCheck component for conditional rendering",
+      "9. Seed default roles (admin, moderator, user)"
+    ],
+    "config_needed": [
+      "Seed default roles and permissions",
+      "Configure permission middleware in API routes",
+      "Set up role hierarchy"
+    ]
+  }
+}

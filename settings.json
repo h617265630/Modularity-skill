@@ -1,0 +1,28 @@
+{
+  "skills": {
+    "modularity": {
+      "path": "/Users/burn/Desktop/Modularity-skill",
+      "description": "AI全栈模块编译器",
+      "enabled": true,
+      "autoInstall": true
+    }
+  },
+  "hooks": {
+    "user": {
+      "modularity": [
+        {
+          "match": "^/([a-z]+)-?m?$",
+          "description": "检测模块命令并执行编译",
+          "action": "compile",
+          "verify": false
+        },
+        {
+          "match": "^/([a-z]+)-?m?\\s+--verify$",
+          "description": "检测模块命令并执行编译+验证",
+          "action": "compile",
+          "verify": true
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,467 @@
+{
+  "command": "/friend-m",
+  "feature_name": "friend_system",
+  "description": "Friend request and management system with accept/decline functionality",
+
+  "backend": {
+    "routes": [
+      {
+        "method": "POST",
+        "path": "/friends/request",
+        "handler_name": "send_friend_request",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/friends/requests",
+        "handler_name": "get_friend_requests",
+        "auth_required": true,
+        "pagination": "cursor"
+      },
+      {
+        "method": "POST",
+        "path": "/friends/requests/{id}/accept",
+        "handler_name": "accept_friend_request",
+        "auth_required": true
+      },
+      {
+        "method": "POST",
+        "path": "/friends/requests/{id}/decline",
+        "handler_name": "decline_friend_request",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/friends",
+        "handler_name": "get_friends",
+        "auth_required": true,
+        "pagination": "cursor"
+      },
+      {
+        "method": "DELETE",
+        "path": "/friends/{user_id}",
+        "handler_name": "remove_friend",
+        "auth_required": true
+      },
+      {
+        "method": "GET",
+        "path": "/friends/{user_id}/status",
+        "handler_name": "get_friendship_status",
+        "auth_required": true
+      }
+    ],
+    "services": [
+      {
+        "name": "FriendService",
+        "description": "Business logic for friend operations",
+        "methods": [
+          {
+            "name": "send_friend_request",
+            "description": "Send friend request to user",
+            "async": true
+          },
+          {
+            "name": "accept_friend_request",
+            "description": "Accept a friend request",
+            "async": true
+          },
+          {
+            "name": "decline_friend_request",
+            "description": "Decline a friend request",
+            "async": true
+          },
+          {
+            "name": "remove_friend",
+            "description": "Remove friend relationship",
+            "async": true
+          },
+          {
+            "name": "get_friends_list",
+            "description": "Get user's friends list",
+            "async": true
+          },
+          {
+            "name": "get_pending_requests",
+            "description": "Get pending friend requests",
+            "async": true
+          },
+          {
+            "name": "check_friendship_status",
+            "description": "Check friendship status with another user",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "models": [
+      {
+        "name": "FriendRequest",
+        "table_name": "friend_requests",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "requester_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id",
+            "index": true
+          },
+          {
+            "name": "receiver_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id",
+            "index": true
+          },
+          {
+            "name": "status",
+            "type": "string",
+            "nullable": false,
+            "default": "'pending'"
+          },
+          {
+            "name": "message",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "responded_at",
+            "type": "datetime",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_friend_requests_requester",
+            "columns": ["requester_id"]
+          },
+          {
+            "name": "idx_friend_requests_receiver",
+            "columns": ["receiver_id"]
+          },
+          {
+            "name": "idx_friend_requests_status",
+            "columns": ["status"]
+          }
+        ]
+      },
+      {
+        "name": "Friend",
+        "table_name": "friends",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false,
+            "index": true
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id",
+            "index": true
+          },
+          {
+            "name": "friend_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id",
+            "index": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "datetime.utcnow()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_friends_user",
+            "columns": ["user_id"]
+          },
+          {
+            "name": "idx_friends_pair",
+            "columns": ["user_id", "friend_id"],
+            "unique": true
+          }
+        ]
+      }
+    ],
+    "curds": [
+      {
+        "name": "friend_request_crud",
+        "model_name": "FriendRequest",
+        "operations": ["create", "read", "update"]
+      },
+      {
+        "name": "friend_crud",
+        "model_name": "Friend",
+        "operations": ["create", "read", "delete"]
+      }
+    ]
+  },
+
+  "frontend": {
+    "components": [
+      {
+        "name": "FriendRequestButton",
+        "description": "Button to send friend request or show status",
+        "props": [
+          {
+            "name": "userId",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "currentStatus",
+            "type": "string",
+            "required": false
+          },
+          {
+            "name": "onRequestSent",
+            "type": "() => void",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "FriendRequestList",
+        "description": "List of pending friend requests",
+        "props": [
+          {
+            "name": "onAccept",
+            "type": "(requestId: string) => void",
+            "required": true
+          },
+          {
+            "name": "onDecline",
+            "type": "(requestId: string) => void",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "FriendList",
+        "description": "List of user's friends",
+        "props": [
+          {
+            "name": "friends",
+            "type": "User[]",
+            "required": true
+          },
+          {
+            "name": "onRemove",
+            "type": "(friendId: string) => void",
+            "required": false
+          }
+        ]
+      }
+    ],
+    "hooks": [
+      {
+        "name": "useFriends",
+        "description": "Get user's friends list",
+        "returns": "{ friends: User[]; loading: boolean; refresh: () => void }"
+      },
+      {
+        "name": "useFriendRequests",
+        "description": "Get pending friend requests",
+        "returns": "{ requests: FriendRequest[]; loading: boolean; refresh: () => void }"
+      },
+      {
+        "name": "useSendFriendRequest",
+        "description": "Send friend request",
+        "returns": "{ send: (userId: string, message?: string) => Promise<void>; isLoading: boolean }"
+      },
+      {
+        "name": "useAcceptFriendRequest",
+        "description": "Accept friend request",
+        "returns": "{ accept: (requestId: string) => Promise<void>; isLoading: boolean }"
+      },
+      {
+        "name": "useFriendshipStatus",
+        "description": "Check friendship status",
+        "returns": "{ status: string; loading: boolean }"
+      }
+    ],
+    "pages": [
+      {
+        "name": "FriendsPage",
+        "route": "/friends",
+        "description": "User's friends and requests page"
+      },
+      {
+        "name": "FriendRequestsPage",
+        "route": "/friends/requests",
+        "description": "Pending friend requests page"
+      }
+    ]
+  },
+
+  "database": {
+    "tables": [
+      {
+        "name": "friend_requests",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "requester_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "receiver_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "status",
+            "type": "string",
+            "nullable": false,
+            "default": "'pending'"
+          },
+          {
+            "name": "message",
+            "type": "string",
+            "nullable": true
+          },
+          {
+            "name": "responded_at",
+            "type": "datetime",
+            "nullable": true
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_friend_requests_requester",
+            "columns": ["requester_id"]
+          },
+          {
+            "name": "idx_friend_requests_receiver",
+            "columns": ["receiver_id"]
+          },
+          {
+            "name": "idx_friend_requests_status",
+            "columns": ["status"]
+          }
+        ]
+      },
+      {
+        "name": "friends",
+        "fields": [
+          {
+            "name": "id",
+            "type": "integer",
+            "nullable": false
+          },
+          {
+            "name": "user_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "friend_id",
+            "type": "integer",
+            "nullable": false,
+            "foreign_key": "users.id"
+          },
+          {
+            "name": "created_at",
+            "type": "datetime",
+            "nullable": false,
+            "default": "now()"
+          },
+          {
+            "name": "created_by",
+            "type": "integer",
+            "nullable": true,
+            "foreign_key": "users.id"
+          }
+        ],
+        "indexes": [
+          {
+            "name": "idx_friends_user",
+            "columns": ["user_id"]
+          },
+          {
+            "name": "idx_friends_pair",
+            "columns": ["user_id", "friend_id"],
+            "unique": true
+          }
+        ]
+      }
+    ],
+    "migrations": [
+      {
+        "name": "create_friend_requests_table",
+        "sql": "CREATE TABLE IF NOT EXISTS friend_requests (...)"
+      },
+      {
+        "name": "create_friends_table",
+        "sql": "CREATE TABLE IF NOT EXISTS friends (...)"
+      }
+    ]
+  },
+
+  "integration": {
+    "steps": [
+      "1. Run database migration to create tables",
+      "2. Add backend models in backend/app/db/models/friend.py",
+      "3. Add CRUD operations in backend/app/cruds/friend_crud.py",
+      "4. Register API routes in backend/app/api/router.py",
+      "5. Create frontend components in frontend/src/components/friends/",
+      "6. Add API service in frontend/src/services/friends.ts",
+      "7. Integrate FriendRequestButton into user cards/profiles",
+      "8. Test friend request flow"
+    ],
+    "config_needed": [
+      "Configure friend request expiry time",
+      "Set up notification when friend request received",
+      "Configure max friends limit if needed"
+    ]
+  }
+}
