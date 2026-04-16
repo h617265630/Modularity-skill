@@ -3,7 +3,7 @@
 // 入口文件
 // ============================================================================
 
-export { FeatureCompiler, compileFeature } from './core/compiler.js';
+export { FeatureCompiler, compileFeature, compileWithFrontendAwareness } from './core/compiler.js';
 export type {
   CompiledFeature,
   CompileContext,

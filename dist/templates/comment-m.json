@@ -3,19 +3,54 @@
   "feature_name": "comment_system",
   "description": "Multi-level comment system with nesting support and reply functionality",
 
+  "generation_config": {
+    "default_mode": "hybrid",
+    "ai_model": "claude-sonnet-4-6"
+  },
+
   "backend": {
     "routes": [
       {
         "method": "POST",
         "path": "/comments",
         "handler_name": "create_comment",
-        "auth_required": true
+        "auth_required": true,
+        "handler_logic": {
+          "type": "ai",
+          "ai_request": {
+            "purpose": "Create a new comment. Include: 1) validate input (content not empty, max 2000 chars) 2) check authentication 3) verify parent comment exists if replying 4) check nesting depth (max 3 levels) 5) create comment in database 6) increment reply_count on parent if exists 7) return created comment with user info",
+            "context": {
+              "model_fields": [
+                {"name": "content", "type": "text"},
+                {"name": "user_id", "type": "integer"},
+                {"name": "target_type", "type": "string"},
+                {"name": "target_id", "type": "integer"},
+                {"name": "parent_id", "type": "integer", "nullable": true},
+                {"name": "reply_count", "type": "integer"}
+              ],
+              "business_rules": [
+                "Comments can be nested up to 3 levels deep",
+                "Users cannot reply to their own comment",
+                "Content must be between 1 and 2000 characters",
+                "Increment parent reply_count when adding a reply"
+              ]
+            },
+            "constraints": {
+              "language": "python",
+              "max_tokens": 1500
+            }
+          }
+        }
       },
       {
         "method": "GET",
         "path": "/comments/{id}",
         "handler_name": "get_comment",
-        "auth_required": false
+        "auth_required": false,
+        "handler_logic": {
+          "type": "template",
+          "impl": "paginated_query"
+        }
       },
       {
         "method": "GET",
@@ -45,17 +80,45 @@
           {
             "name": "build_comment_tree",
             "description": "Build hierarchical tree from flat comment list",
-            "async": true
+            "async": true,
+            "logic": {
+              "type": "ai",
+              "ai_request": {
+                "purpose": "Build a hierarchical tree structure from a flat list of comments. Each comment has id, parent_id, content, user_id, created_at, reply_count. Return a nested tree where children are nested under their parent comments up to max_depth (default 3). Sort children by created_at ascending.",
+                "context": {
+                  "model_fields": [
+                    {"name": "id", "type": "integer"},
+                    {"name": "parent_id", "type": "integer", "nullable": true},
+                    {"name": "content", "type": "text"},
+                    {"name": "user_id", "type": "integer"},
+                    {"name": "reply_count", "type": "integer"},
+                    {"name": "created_at", "type": "datetime"}
+                  ]
+                },
+                "constraints": {
+                  "language": "python",
+                  "max_tokens": 1200
+                }
+              }
+            }
           },
           {
             "name": "get_comment_count",
             "description": "Get total comment count for a target",
-            "async": true
+            "async": true,
+            "logic": {
+              "type": "template",
+              "impl": "count_aggregation"
+            }
           },
           {
             "name": "validate_comment_permission",
             "description": "Check if user can modify/delete comment",
-            "async": false
+            "async": false,
+            "logic": {
+              "type": "template",
+              "impl": "ownership_check"
+            }
           }
         ]
       }
@@ -239,7 +302,17 @@
       {
         "name": "useComments",
         "description": "Fetch and manage comments for a target",
-        "returns": "CommentState"
+        "returns": "CommentState",
+        "impl": {
+          "type": "ai",
+          "ai_request": {
+            "purpose": "React hook for fetching and managing comments with hierarchical tree structure. Include: 1) state for comments list, loading, error 2) fetchComments function that fetches comments for targetType/targetId 3) buildCommentTree function to transform flat list to nested tree 4) pagination support with cursor 5) optimistic updates for new comments 6) error handling",
+            "constraints": {
+              "language": "typescript",
+              "max_tokens": 1500
+            }
+          }
+        }
       },
       {
         "name": "useCreateComment",

@@ -3,9 +3,19 @@
 // 生成带文件标记的模块化代码
 // ============================================================================
 
-import { FeatureTemplate, TechStack } from '../core/types.js';
+import { FeatureTemplate, TechStack, HookTemplate } from '../core/types.js';
+import { BaseGenerator, kebabCase, pascalCase, camelCase } from './base-generator.js';
+import { AICodeGenerator } from './ai-code-generator.js';
+import { TEMPLATE_SNIPPETS, fillSnippet } from './template-snippets.js';
 
-export class FrontendGenerator {
+export class FrontendGenerator extends BaseGenerator {
+  private aiGenerator: AICodeGenerator;
+
+  constructor(options?: any) {
+    super(options || {});
+    this.aiGenerator = new AICodeGenerator();
+  }
+
   async generate(template: FeatureTemplate, stack: TechStack): Promise<string> {
     const parts: string[] = [];
 
@@ -16,7 +26,7 @@ export class FrontendGenerator {
 
     // 2. 生成 Hook 文件
     for (const hook of template.frontend.hooks) {
-      parts.push(this.generateHookFile(hook, template));
+      parts.push(await this.generateHookFile(hook as HookTemplate));
     }
 
     // 3. 生成 API 服务文件
@@ -31,7 +41,7 @@ export class FrontendGenerator {
   }
 
   private generateComponentFile(component: any, template: FeatureTemplate): string {
-    const fileName = 'src/components/' + this.pascalCase(component.name) + '.tsx';
+    const fileName = 'src/components/' + pascalCase(component.name) + '.tsx';
     const lines: string[] = [];
 
     lines.push('// File: ' + fileName);
@@ -61,7 +71,7 @@ export class FrontendGenerator {
     }
 
     lines.push('  return (');
-    lines.push('    <div className="' + this.kebabCase(component.name) + '">');
+    lines.push('    <div className="' + kebabCase(component.name) + '">');
     lines.push('      {/* ' + component.name + ' component */}');
     lines.push('    </div>');
     lines.push('  );');
@@ -72,8 +82,8 @@ export class FrontendGenerator {
     return lines.join('\n');
   }
 
-  private generateHookFile(hook: any, template: FeatureTemplate): string {
-    const fileName = 'src/hooks/use' + this.pascalCase(hook.name) + '.ts';
+  private async generateHookFile(hook: HookTemplate): Promise<string> {
+    const fileName = 'src/hooks/use' + pascalCase(hook.name) + '.ts';
     const lines: string[] = [];
 
     lines.push('// File: ' + fileName);
@@ -81,26 +91,55 @@ export class FrontendGenerator {
     lines.push('// ' + hook.name + ' Hook');
     lines.push('// ============================================================================');
     lines.push('');
-    lines.push("import { useState, useEffect } from 'react';");
 
     const returnType = hook.returns || 'void';
-    lines.push('');
-    lines.push('export function use' + this.pascalCase(hook.name) + '() {');
-    lines.push('  // ' + hook.description);
-    lines.push('  const [data, setData] = useState<any>(null);');
-    lines.push('  const [loading, setLoading] = useState<boolean>(false);');
-    lines.push('  const [error, setError] = useState<string | null>(null);');
-    lines.push('');
-    lines.push('  // TODO: Implement ' + hook.name + ' logic');
-    lines.push('');
-    lines.push('  return { data, loading, error };');
-    lines.push('}');
+
+    // Handle hook implementation type
+    if (hook.impl?.type === 'ai') {
+      // AI 生成
+      const result = await this.aiGenerator.generate(hook.impl.ai_request!);
+      lines.push(result.code);
+    } else if (hook.impl?.type === 'template') {
+      // 模板片段
+      const snippet = fillSnippet(hook.impl.impl!, {
+        hook_name: hook.name,
+        params_type: 'any',
+      });
+      lines.push(snippet);
+    } else if (hook.impl?.type === 'hybrid') {
+      // Hybrid 模式
+      if (hook.impl.impl) {
+        const snippet = fillSnippet(hook.impl.impl, {
+          hook_name: hook.name,
+          params_type: 'any',
+        });
+        lines.push(snippet);
+      }
+      if (hook.impl.ai_request) {
+        const result = await this.aiGenerator.generate(hook.impl.ai_request);
+        lines.push(result.code);
+      }
+    } else {
+      // 默认骨架代码
+      lines.push("import { useState, useEffect } from 'react';");
+      lines.push('');
+      lines.push('export function use' + pascalCase(hook.name) + '() {');
+      lines.push('  // ' + hook.description);
+      lines.push('  const [data, setData] = useState<any>(null);');
+      lines.push('  const [loading, setLoading] = useState<boolean>(false);');
+      lines.push('  const [error, setError] = useState<string | null>(null);');
+      lines.push('');
+      lines.push('  // TODO: Implement ' + hook.name + ' logic');
+      lines.push('');
+      lines.push('  return { data, loading, error };');
+      lines.push('}');
+    }
 
     return lines.join('\n');
   }
 
   private generateApiServiceFile(template: FeatureTemplate): string {
-    const fileName = 'src/services/' + this.kebabCase(template.feature_name) + '.ts';
+    const fileName = 'src/services/' + kebabCase(template.feature_name) + '.ts';
     const lines: string[] = [];
 
     lines.push('// File: ' + fileName);
@@ -110,7 +149,7 @@ export class FrontendGenerator {
     lines.push('');
     lines.push("import axios from 'axios';");
     lines.push('');
-    const prefix = this.kebabCase(template.feature_name);
+    const prefix = kebabCase(template.feature_name);
     lines.push('const API_BASE = \'/api/' + prefix + '\';');
     lines.push('');
     lines.push('const api = axios.create({');
@@ -150,7 +189,7 @@ export class FrontendGenerator {
   }
 
   private generatePageFile(page: any, template: FeatureTemplate): string {
-    const fileName = 'src/pages/' + this.pascalCase(page.name) + 'Page.tsx';
+    const fileName = 'src/pages/' + pascalCase(page.name) + 'Page.tsx';
     const lines: string[] = [];
 
     lines.push('// File: ' + fileName);
@@ -159,17 +198,17 @@ export class FrontendGenerator {
     lines.push('// ============================================================================');
     lines.push('');
     lines.push("import React from 'react';");
-    lines.push("import { use" + this.pascalCase(template.feature_name) + " } from '../hooks/use" + this.pascalCase(template.feature_name) + "';");
+    lines.push("import { use" + pascalCase(template.feature_name) + " } from '../hooks/use" + pascalCase(template.feature_name) + "';");
     lines.push('');
     lines.push('export const ' + page.name + 'Page: React.FC = () => {');
     lines.push('  // ' + page.description);
-    lines.push('  const { data, loading, error } = use' + this.pascalCase(template.feature_name) + '();');
+    lines.push('  const { data, loading, error } = use' + pascalCase(template.feature_name) + '();');
     lines.push('');
     lines.push('  if (loading) return <div>Loading...</div>;');
     lines.push('  if (error) return <div>Error: {error}</div>;');
     lines.push('');
     lines.push('  return (');
-    lines.push('    <div className="' + this.kebabCase(page.name) + '-page">');
+    lines.push('    <div className="' + kebabCase(page.name) + '-page">');
     lines.push('      <h1>' + page.name + '</h1>');
     lines.push('      {/* Page content */}');
     lines.push('    </div>');
@@ -179,13 +218,5 @@ export class FrontendGenerator {
     lines.push('export default ' + page.name + 'Page;');
 
     return lines.join('\n');
-  }
-
-  private pascalCase(s: string): string {
-    return s.replace(/-([a-z])/g, (_, c) => c.toUpperCase()).replace(/([a-z])([A-Z])/g, '$1$2').replace(/^./, (c) => c.toUpperCase());
-  }
-
-  private kebabCase(s: string): string {
-    return s.replace(/([a-z])([A-Z])/g, '$1-$2').replace(/([A-Z])([A-Z][a-z])/g, '$1-$2').toLowerCase();
   }
 }

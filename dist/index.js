@@ -2,7 +2,7 @@
 // Modularity-skill - Feature Compiler AI
 // 入口文件
 // ============================================================================
-export { FeatureCompiler, compileFeature } from './core/compiler.js';
+export { FeatureCompiler, compileFeature, compileWithFrontendAwareness } from './core/compiler.js';
 // 验证模块
 export { verifyModule, Verifier } from './verifier/index.js';
 // 项目检测模块

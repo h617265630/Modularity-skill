@@ -6,6 +6,8 @@ import { FrontendGenerator } from '../generators/frontend.js';
 import { DatabaseGenerator } from '../generators/database.js';
 import { getTemplate } from '../templates/index.js';
 import { verifyModule } from '../verifier/index.js';
+import { FrontendAnalyzer, matchFrontendToBackend } from '../detector/frontend-analyzer.js';
+import { ProjectScanner } from './project-scanner.js';
 /**
  * Feature Compiler AI - 主类
  * 将功能命令转换为完整的全栈模块实现
@@ -15,8 +17,18 @@ export class FeatureCompiler {
     frontendGenerator;
     databaseGenerator;
     constructor() {
-        this.backendGenerator = new BackendGenerator();
-        this.frontendGenerator = new FrontendGenerator();
+        this.backendGenerator = new BackendGenerator({
+            projectPath: '',
+            language: 'python',
+            framework: 'fastapi',
+            dryRun: true
+        });
+        this.frontendGenerator = new FrontendGenerator({
+            projectPath: '',
+            language: 'typescript',
+            framework: 'react',
+            dryRun: true
+        });
         this.databaseGenerator = new DatabaseGenerator();
     }
     /**
@@ -81,6 +93,123 @@ export class FeatureCompiler {
      */
     getSupportedCommands() {
         return ['/comment-m', '/like', '/follow', '/notification'];
+    }
+    /**
+     * 扫描项目并检测前端代码（用于外部调用）
+     */
+    async scanProject(projectPath) {
+        const scanner = new ProjectScanner();
+        return scanner.scan(projectPath);
+    }
+    /**
+     * 带前端感知的编译
+     * 自动检测现有前端代码并生成适配层
+     * @param command 功能命令
+     * @param context 编译上下文，包含 projectPath
+     */
+    async compileWithFrontendAwareness(command, context) {
+        // 解析命令
+        const normalizedCommand = this.normalizeCommand(command);
+        // 获取功能模板
+        const template = await this.getFeatureTemplate(normalizedCommand);
+        if (!template) {
+            throw new Error(`Unknown command: ${command}. Supported commands: /comment-m, /like, /follow, /notification`);
+        }
+        // 确定技术栈
+        const stack = context?.stack || this.getDefaultStack();
+        // 分析现有前端代码
+        let detectedFrontend = null;
+        let integrationResult = null;
+        if (context?.projectPath) {
+            const scanner = new ProjectScanner();
+            const projectStructure = scanner.scan(context.projectPath);
+            if (projectStructure.frontend) {
+                // 使用用户指定的目录或默认目录
+                const analyzerOptions = context.frontendAnalysis ? {
+                    hooks_dir: context.frontendAnalysis.hooks_dir,
+                    components_dir: context.frontendAnalysis.components_dir,
+                    api_services_dir: context.frontendAnalysis.api_services_dir,
+                } : undefined;
+                const analyzer = new FrontendAnalyzer(projectStructure.frontend, analyzerOptions);
+                detectedFrontend = await analyzer.analyzeFeature(template.feature_name);
+                if (detectedFrontend) {
+                    console.log(`   📦 Detected existing frontend code: ${detectedFrontend.hooks.length} hook(s), ${detectedFrontend.components.length} component(s)`);
+                    // 匹配前端与后端
+                    integrationResult = matchFrontendToBackend(detectedFrontend, template.backend.routes.map(r => ({ method: r.method, path: r.path })));
+                    console.log(`   🔄 Integration strategy: ${integrationResult.strategy}`);
+                    if (integrationResult.strategy === 'adapter') {
+                        console.log(`   📝 Will generate adapter for ${integrationResult.mismatched_endpoints.length} endpoint(s)`);
+                    }
+                }
+                else if (context.frontendAnalysis) {
+                    // 用户指定了目录但没找到
+                    console.log(`   ⚠️  No existing frontend code found in specified directories`);
+                }
+            }
+        }
+        // 生成后端代码
+        const backendPatch = await this.backendGenerator.generate(template, stack);
+        // 生成前端代码
+        const frontendPatch = await this.frontendGenerator.generate(template, stack);
+        // 生成数据库代码
+        const databasePatch = await this.databaseGenerator.generate(template, stack);
+        // 构建结果
+        const result = {
+            feature_name: template.feature_name,
+            description: template.description,
+            backend_changes: this.buildBackendChanges(template, backendPatch),
+            frontend_changes: this.buildFrontendChanges(template, frontendPatch),
+            shared_contracts: this.buildSharedContracts(template),
+            integration_steps: [...template.integration.steps],
+            code_patch: {
+                backend: backendPatch,
+                frontend: frontendPatch,
+                database: databasePatch,
+            },
+            risk_notes: this.generateRiskNotes(template),
+        };
+        // 添加集成相关的信息
+        if (detectedFrontend) {
+            // 显示检测到的文件位置
+            const hookPaths = detectedFrontend.hooks.map(h => `  - ${h.name}: ${this.shortenPath(h.file_path)}`).join('\n');
+            const componentPaths = detectedFrontend.components.map(c => `  - ${c.name}: ${this.shortenPath(c.file_path)}`).join('\n');
+            result.integration_steps.unshift(`📦 Existing frontend detected: ${detectedFrontend.hooks.length} hook(s), ${detectedFrontend.components.length} component(s)`, 'Detected hooks:', hookPaths || '  (none)', 'Detected components:', componentPaths || '  (none)', '');
+        }
+        if (integrationResult) {
+            result.integration_steps.unshift(`🔄 Integration strategy: ${integrationResult.strategy}`);
+            // 如果需要 adapter，添加到 code_patch
+            if (integrationResult.strategy === 'adapter' && integrationResult.adapter_code) {
+                result.code_patch.adapter = integrationResult.adapter_code;
+                result.integration_steps.unshift('🔄 Generating adapter layer for API path compatibility');
+            }
+            // 添加后端补丁建议
+            if (integrationResult.backend_patch_suggestions.length > 0) {
+                result.integration_steps.push(...integrationResult.backend_patch_suggestions.map(s => `💡 ${s}`));
+            }
+            // 添加前端补丁建议
+            if (integrationResult.frontend_patch_suggestions.length > 0) {
+                result.integration_steps.push(...integrationResult.frontend_patch_suggestions.map(s => `💡 ${s}`));
+            }
+        }
+        // 如果启用了验证，运行验证流程
+        if (context?.verify) {
+            const generatedCode = {
+                backend: backendPatch,
+                frontend: frontendPatch,
+                database: databasePatch,
+                adapter: result.code_patch.adapter,
+            };
+            const verificationResult = await verifyModule(template, generatedCode, {
+                verbose: true,
+                fix_enabled: true,
+                max_retries: 3,
+            }, context.language || 'python');
+            result.verification = verificationResult;
+            if (!verificationResult.success) {
+                console.warn(`Verification failed for ${command}: ${verificationResult.errors.length} error(s)`);
+            }
+        }
+        return result;
     }
     /**
      * 获取功能模板详情
@@ -227,6 +356,20 @@ export class FeatureCompiler {
         };
         return typeMap[pythonType] || pythonType;
     }
+    /**
+     * 缩短路径显示（去掉项目根路径前缀）
+     */
+    shortenPath(fullPath) {
+        // 移除常见的根路径前缀
+        const prefixes = ['frontend/src/', 'src/', 'frontend/', 'app/'];
+        for (const prefix of prefixes) {
+            if (fullPath.includes(prefix)) {
+                return '...' + fullPath.substring(fullPath.indexOf(prefix));
+            }
+        }
+        // 如果没有匹配，返回最后50个字符
+        return fullPath.length > 50 ? '...' + fullPath.slice(-50) : fullPath;
+    }
 }
 /**
  * 导出便利函数
@@ -234,5 +377,12 @@ export class FeatureCompiler {
 export async function compileFeature(command, context) {
     const compiler = new FeatureCompiler();
     return await compiler.compile(command, context);
+}
+/**
+ * 带前端感知的编译便利函数
+ */
+export async function compileWithFrontendAwareness(command, context) {
+    const compiler = new FeatureCompiler();
+    return await compiler.compileWithFrontendAwareness(command, context);
 }
 //# sourceMappingURL=compiler.js.map

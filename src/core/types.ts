@@ -118,6 +118,7 @@ export interface CodePatch {
   backend: string;
   frontend: string;
   database: string;
+  adapter?: string;
 }
 
 /**
@@ -151,6 +152,7 @@ export interface RouteTemplate {
   path: string;
   handler_name: string;
   auth_required: boolean;
+  handler_logic?: HandlerLogic;
 }
 
 /**
@@ -184,12 +186,89 @@ export interface FieldTemplate {
 }
 
 /**
+ * 代码生成模式
+ */
+export type GenerationMode = 'template' | 'ai' | 'hybrid';
+
+/**
+ * AI 代码生成请求
+ */
+export interface AICodeRequest {
+  purpose: string;
+  context?: {
+    model_fields?: FieldTemplate[];
+    related_services?: string[];
+    business_rules?: string[];
+    existing_code?: string;
+  };
+  constraints: {
+    language: 'python' | 'typescript';
+    max_tokens?: number;
+    temperature?: number;
+  };
+}
+
+/**
+ * AI 生成配置
+ */
+export interface GenerationConfig {
+  default_mode: GenerationMode;
+  ai_provider: 'claude' | 'openai' | 'local';
+  ai_model: string;
+  max_tokens: number;
+  temperature?: number;
+  rate_limit?: {
+    requests_per_minute: number;
+    retry_delay_ms: number;
+  };
+}
+
+export const DEFAULT_GENERATION_CONFIG: GenerationConfig = {
+  default_mode: 'hybrid',
+  ai_provider: 'claude',
+  ai_model: 'claude-sonnet-4-6',
+  max_tokens: 4096,
+  temperature: 0.3,
+  rate_limit: {
+    requests_per_minute: 10,
+    retry_delay_ms: 2000,
+  },
+};
+
+/**
  * 方法模板
  */
 export interface MethodTemplate {
   name: string;
   description: string;
   async: boolean;
+  logic?: MethodLogic;
+}
+
+/**
+ * 方法业务逻辑定义
+ */
+export interface MethodLogic {
+  type: GenerationMode;
+  impl?: string;
+  ai_request?: AICodeRequest;
+}
+
+/**
+ * 路由处理器逻辑定义
+ */
+export interface HandlerLogic {
+  type: GenerationMode;
+  ai_request?: AICodeRequest;
+}
+
+/**
+ * Hook 实现逻辑定义
+ */
+export interface HookImpl {
+  type: GenerationMode;
+  impl?: string;
+  ai_request?: AICodeRequest;
 }
 
 /**
@@ -226,6 +305,7 @@ export interface HookTemplate {
   name: string;
   description: string;
   returns: string;
+  impl?: HookImpl;
 }
 
 /**
@@ -297,6 +377,14 @@ export interface CompileContext {
   existing_structure?: ProjectStructure;
   verify?: boolean;
   language?: 'python' | 'typescript';
+  /**
+   * 前端代码分析选项（手动指定扫描路径）
+   */
+  frontendAnalysis?: {
+    hooks_dir?: string;
+    components_dir?: string;
+    api_services_dir?: string;
+  };
 }
 
 /**
@@ -331,8 +419,156 @@ export interface GeneratedCode {
   backend?: string;
   frontend?: string;
   database?: string;
+  adapter?: string;
   tests?: {
     backend?: string;
     frontend?: string;
   };
+}
+
+// ============================================================================
+// Frontend Integration Types
+// ============================================================================
+
+/**
+ * 检测到的前端代码（用于已有项目的集成）
+ */
+export interface DetectedFrontendCode {
+  feature_name: string;
+  hooks: DetectedHook[];
+  components: DetectedComponent[];
+  api_services: DetectedApiService[];
+}
+
+/**
+ * 检测到的 Hook
+ */
+export interface DetectedHook {
+  name: string;
+  file_path: string;
+  endpoints_called: HookEndpoint[];
+  expected_response_shape: ResponseShape | null;
+  auth_headers: string[];
+}
+
+/**
+ * Hook 中调用的 API 端点
+ */
+export interface HookEndpoint {
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+  path: string;
+  has_auth: boolean;
+  query_params: string[];
+  request_body_type: string | null;
+}
+
+/**
+ * 期望的 Response 数据结构
+ */
+export interface ResponseShape {
+  type_name: string;
+  fields: TypeField[];
+  is_array: boolean;
+  is_paginated: boolean;
+  pagination_fields?: {
+    cursor: string;
+    has_more: string;
+    items: string;
+  };
+}
+
+/**
+ * TypeScript 类型字段
+ */
+export interface TypeField {
+  name: string;
+  type: string;
+  optional: boolean;
+  nested_type?: string;
+}
+
+/**
+ * 检测到的组件
+ */
+export interface DetectedComponent {
+  name: string;
+  file_path: string;
+  props_type: string | null;
+  hooks_used: string[];
+}
+
+/**
+ * 检测到的 API Service 文件
+ */
+export interface DetectedApiService {
+  file_path: string;
+  base_url: string;
+  endpoints: ServiceEndpoint[];
+}
+
+/**
+ * Service 中的端点定义
+ */
+export interface ServiceEndpoint {
+  method: string;
+  path: string;
+  function_name: string;
+}
+
+/**
+ * 集成策略
+ */
+export type IntegrationStrategy = 'adapter' | 'backend-first' | 'frontend-first' | 'exact';
+
+/**
+ * 匹配结果
+ */
+export interface IntegrationMatchResult {
+  strategy: IntegrationStrategy;
+  matched_endpoints: MatchedEndpoint[];
+  mismatched_endpoints: MismatchedEndpoint[];
+  adapter_code: string | null;
+  backend_patch_suggestions: string[];
+  frontend_patch_suggestions: string[];
+}
+
+/**
+ * 匹配的端点
+ */
+export interface MatchedEndpoint {
+  frontend_path: string;
+  backend_path: string;
+  method: string;
+  compatibility: 'exact' | 'compatible';
+}
+
+/**
+ * 不匹配的端点
+ */
+export interface MismatchedEndpoint {
+  frontend_path: string;
+  backend_path: string | null;
+  method: string;
+  differences: EndpointDifference[];
+  suggested_resolution: 'add-backend' | 'add-adapter' | 'update-frontend';
+}
+
+/**
+ * 端点差异
+ */
+export interface EndpointDifference {
+  aspect: 'path' | 'method' | 'response_shape' | 'auth' | 'pagination';
+  frontend_expectation: string;
+  backend_actual: string;
+}
+
+/**
+ * 前端分析选项
+ */
+export interface FrontendAnalysisOptions {
+  hooks_dir?: string;
+  components_dir?: string;
+  api_services_dir?: string;
+  scan_depth?: 'shallow' | 'deep';
+  infer_types?: boolean;
 }

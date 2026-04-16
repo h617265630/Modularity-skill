@@ -1,7 +1,7 @@
 {
   "name": "modularity",
   "version": "1.0.0",
-  "description": "AI全栈模块编译器 - 一句话生成完整功能模块",
+  "description": "AI全栈模块编译器 - 一句话生成完整功能模块（FastAPI + Next.js + PostgreSQL）",
   "icon": "🧩",
   "triggers": [
     "/comment-m",
@@ -11,7 +11,8 @@
     "/user-m",
     "/post-m",
     "/search",
-    "/message"
+    "/message",
+    "/attach-um"
   ],
   "usage": {
     "default": "{command}",
@@ -42,8 +43,8 @@
     "7": "输出完整的代码补丁"
   },
   "output": {
-    "backend": "FastAPI 路由 + Service + CRUD",
-    "frontend": "React 组件 + Hooks + API 调用",
-    "database": "PostgreSQL 表结构 + 索引"
+    "backend": "FastAPI 路由 + Service + CRUD + SQLAlchemy 模型",
+    "frontend": "Next.js 组件 + Hooks + API 调用",
+    "database": "PostgreSQL 表结构 + Alembic 迁移"
   }
 }

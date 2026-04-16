@@ -1,4 +1,4 @@
-export { FeatureCompiler, compileFeature } from './core/compiler.js';
+export { FeatureCompiler, compileFeature, compileWithFrontendAwareness } from './core/compiler.js';
 export type { CompiledFeature, CompileContext, FeatureTemplate, TechStack, BackendChanges, FrontendChanges, SharedContracts, ApiRoute, DatabaseChange, ComponentRef, StateChange, ApiCallRef, TypeDefinition, SchemaDefinition, GeneratedCode, } from './core/types.js';
 export { verifyModule, Verifier } from './verifier/index.js';
 export type { VerificationResult, VerificationError, VerifyOptions, TestResult, LintResult, TypeCheckResult, } from './verifier/index.js';

@@ -5,6 +5,17 @@ description: Generate full-stack modules from commands like /comment-m, /like, /
 
 # Modularity-skill — Feature Compiler AI
 
+## 技术栈（默认）
+
+| 层级 | 技术 |
+|------|------|
+| **Backend** | FastAPI + SQLAlchemy + PostgreSQL |
+| **Frontend** | Next.js 14 + shadcn/ui + TypeScript |
+| **Database** | PostgreSQL |
+| **Auth** | JWT |
+
+> **注意**：当前版本固定生成 FastAPI + Next.js + PostgreSQL。Express/其他后端支持规划中。
+
 ## 调用方式
 
 ```
@@ -29,6 +40,7 @@ description: Generate full-stack modules from commands like /comment-m, /like, /
 | `/search` | 搜索功能 | SearchBar, SearchResults, useSearch |
 | `/message` | 私信系统 | MessageList, MessageItem, useMessages |
 | `/readytorun` | **一键启动** - 安装依赖并运行项目（代码已存在时用） | - |
+| `/attach-um` | **自动接入** - 扫描已有前端代码并生成对应后端 | - |
 
 ---
 
@@ -43,6 +55,101 @@ description: Generate full-stack modules from commands like /comment-m, /like, /
 | `--force` | 强制覆盖已存在的文件 |
 | `--language <python\|typescript>` | 指定后端语言 |
 | `--frontend <react\|vue\|nextjs>` | 指定前端框架 |
+| `--hooks-dir=<path>` | 指定 hooks 目录（用于检测现有前端代码） |
+| `--components-dir=<path>` | 指定组件目录（用于检测现有前端代码） |
+| `--api-dir=<path>` | 指定 API 服务目录（用于检测现有前端代码） |
+
+---
+
+## /attach-um - 自动接入已有前端模块
+
+`/attach-um` 命令用于扫描项目中已有的前端代码，自动识别它们属于哪个功能模块，并生成对应的后端 API。
+
+### 使用场景
+
+- 项目已有前端代码（hooks、components），但没有后端
+- 前端开发者已经写好了 `useComments`、`CommentList` 等，但后端还没实现
+- 想快速给现有前端代码配上后端
+
+### 工作原理
+
+```
+/attach-um
+    │
+    ├── 扫描前端代码
+    │   ├── hooks/ → useComments, usePosts, useLikes...
+    │   ├── components/ → CommentList, PostItem...
+    │   └── api/ → commentApi, postApi...
+    │
+    ├── 识别模块
+    │   ├── useComments + CommentList → comment-m
+    │   ├── useLikes + LikeButton → like
+    │   └── ...
+    │
+    ├── 生成后端
+    │   └── 每个模块生成对应的 FastAPI 路由 + 模型
+    │
+    └── 生成适配层（如需要）
+        └── adapter.ts 适配 API 路径差异
+```
+
+### 支持的模块识别
+
+| 前端代码特征 | 识别为模块 |
+|------------|-----------|
+| `useComments`, `CommentList`, `CommentItem` | `/comment-m` |
+| `useLikes`, `LikeButton`, `LikeCount` | `/like` |
+| `useFollow`, `FollowButton`, `FollowersList` | `/follow` |
+| `usePosts`, `PostList`, `PostItem` | `/post-m` |
+| `useNotifications`, `NotificationBell` | `/notification` |
+| `useMessages`, `MessageList`, `MessageItem` | `/message` |
+| `useUsers`, `UserProfile`, `UserList` | `/user-m` |
+| `useSearch`, `SearchBar`, `SearchResults` | `/search` |
+
+### 使用示例
+
+```bash
+# 扫描并预览（不写入）
+/attach-um
+
+# 扫描并写入文件
+/attach-um --write
+
+# 指定自定义目录
+/attach-um --hooks-dir=src/store/hooks --components-dir=src/features
+
+# 指定目标项目路径
+/attach-um --target=/path/to/project --write
+```
+
+### 输出示例
+
+```
+╔══════════════════════════════════════════════════════════════╗
+║           🔍 Attaching Unconnected Modules                  ║
+╠══════════════════════════════════════════════════════════════╣
+║  Scanning frontend code to find modules without backend...  ║
+╚══════════════════════════════════════════════════════════════╝
+
+   📦 Found comment: 2 hooks, 1 components
+   📦 Found like: 1 hooks, 2 components
+
+╔══════════════════════════════════════════════════════════════╗
+║                   📋 Detected Modules                        ║
+╠══════════════════════════════════════════════════════════════╣
+║  comment             - 2 hooks, 1 components                ║
+║  like                - 1 hooks, 2 components                ║
+╚══════════════════════════════════════════════════════════════╝
+
+   Processing /comment-m...
+   ✅ comment: 5 API routes
+      - useComments: ...frontend/src/hooks/useComments.ts
+      - useReplies: ...frontend/src/hooks/useReplies.ts
+
+   Processing /like...
+   ✅ like: 4 API routes
+      - useLikes: ...frontend/src/hooks/useLikes.ts
+```
 
 ---
 
@@ -358,6 +465,54 @@ cd frontend && npm run dev &
 - NotificationItem：单个通知项
 - useNotifications：获取通知、标记已读
 - useUnreadCount：获取未读数量
+
+---
+
+## 已有项目前端代码感知
+
+当项目已有前端代码时，skill 会自动检测并尝试集成：
+
+### 自动检测（默认）
+
+skill 自动扫描标准目录：
+- `src/hooks/` - 查找 `useComments`、`usePosts` 等 hooks
+- `src/components/` - 查找 `CommentList`、`PostItem` 等组件
+- `src/api/` 或 `src/services/` - 查找 API 调用
+
+### 手动指定目录
+
+如果前端代码在不标准的位置，使用选项明确指定：
+
+```bash
+/comment-m --write \
+  --hooks-dir=src/store/hooks \
+  --components-dir=src/features/comments/components \
+  --api-dir=src/features/comments/api
+```
+
+### 集成策略
+
+检测到现有代码后，skill 会选择最佳策略：
+
+| 策略 | 说明 |
+|------|------|
+| `exact` | 前端调用的 API 与生成的后端完全匹配，无需适配 |
+| `adapter` | 生成适配层，转换 API 路径（如 `/api/v1/comments` → `/comments`） |
+| `backend-first` | 只生成后端，需手动更新前端调用 |
+
+### 输出示例
+
+```
+📦 Existing frontend detected: 2 hook(s), 1 component(s)
+Detected hooks:
+  - useComments: ...frontend/src/hooks/useComments.ts
+  - useCommentReplies: ...frontend/src/hooks/useCommentReplies.ts
+Detected components:
+  - CommentList: ...frontend/src/components/CommentList.tsx
+
+🔄 Integration strategy: adapter
+📝 Will generate adapter for 2 endpoint(s)
+```
 
 ---
 

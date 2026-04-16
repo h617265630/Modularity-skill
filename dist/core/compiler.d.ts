@@ -1,4 +1,5 @@
 import { CompiledFeature, CompileContext, FeatureTemplate } from './types.js';
+import { ProjectStructure } from './project-scanner.js';
 /**
  * Feature Compiler AI - 主类
  * 将功能命令转换为完整的全栈模块实现
@@ -19,6 +20,19 @@ export declare class FeatureCompiler {
      * 获取所有支持的功能命令
      */
     getSupportedCommands(): string[];
+    /**
+     * 扫描项目并检测前端代码（用于外部调用）
+     */
+    scanProject(projectPath: string): Promise<ProjectStructure>;
+    /**
+     * 带前端感知的编译
+     * 自动检测现有前端代码并生成适配层
+     * @param command 功能命令
+     * @param context 编译上下文，包含 projectPath
+     */
+    compileWithFrontendAwareness(command: string, context?: CompileContext & {
+        projectPath?: string;
+    }): Promise<CompiledFeature>;
     /**
      * 获取功能模板详情
      */
@@ -53,9 +67,19 @@ export declare class FeatureCompiler {
     private generateRiskNotes;
     private mapTypeToTS;
     private mapTypeToPydantic;
+    /**
+     * 缩短路径显示（去掉项目根路径前缀）
+     */
+    private shortenPath;
 }
 /**
  * 导出便利函数
  */
 export declare function compileFeature(command: string, context?: CompileContext): Promise<CompiledFeature>;
+/**
+ * 带前端感知的编译便利函数
+ */
+export declare function compileWithFrontendAwareness(command: string, context?: CompileContext & {
+    projectPath?: string;
+}): Promise<CompiledFeature>;
 //# sourceMappingURL=compiler.d.ts.map

@@ -3,9 +3,23 @@
 // 生成带文件标记的模块化代码
 // ============================================================================
 
-import { FeatureTemplate, TechStack } from '../core/types.js';
+import { FeatureTemplate, TechStack, MethodTemplate, RouteTemplate } from '../core/types.js';
+import { BaseGenerator, kebabCase, pascalCase } from './base-generator.js';
+import { snakeCase } from './shared/strings.js';
+import { getPythonType, getSqlAlchemyType, getSqlTypeMap } from './shared/schema.js';
+import { generatePydanticValidators } from './shared/validation.js';
+import { AICodeGenerator } from './ai-code-generator.js';
+import { TEMPLATE_SNIPPETS, fillSnippet } from './template-snippets.js';
+import type { FieldConfig } from './shared/types.js';
 
-export class BackendGenerator {
+export class BackendGenerator extends BaseGenerator {
+  private aiGenerator: AICodeGenerator;
+
+  constructor(options?: any) {
+    super(options || {});
+    this.aiGenerator = new AICodeGenerator();
+  }
+
   async generate(template: FeatureTemplate, stack: TechStack): Promise<string> {
     const parts: string[] = [];
 
@@ -28,18 +42,18 @@ export class BackendGenerator {
     }
 
     // 4. 生成 API 路由文件
-    parts.push(this.generateRoutesFile(template));
+    parts.push(await this.generateRoutesFile(template));
 
     // 5. 生成 Service 文件
     for (const service of template.backend.services) {
-      parts.push(this.generateServiceFile(service));
+      parts.push(await this.generateServiceFile(service, template));
     }
 
     return parts.join('\n');
   }
 
   private generateModelFile(model: any): string {
-    const fileName = 'app/models/' + this.kebabCase(model.name) + '.py';
+    const fileName = 'app/models/' + kebabCase(model.name) + '.py';
     const lines: string[] = [];
 
     lines.push('# File: ' + fileName);
@@ -76,7 +90,7 @@ export class BackendGenerator {
   }
 
   private generateSchemaFile(model: any): string {
-    const fileName = 'app/schemas/' + this.kebabCase(model.name) + '.py';
+    const fileName = 'app/schemas/' + kebabCase(model.name) + '.py';
     const lines: string[] = [];
 
     lines.push('# File: ' + fileName);
@@ -115,8 +129,8 @@ export class BackendGenerator {
   }
 
   private generateCrudFile(curd: any, model: any): string {
-    const fileName = 'app/cruds/' + this.kebabCase(curd.model_name) + '_crud.py';
-    const modelVar = this.kebabCase(curd.model_name);
+    const fileName = 'app/cruds/' + kebabCase(curd.model_name) + '_crud.py';
+    const modelVar = kebabCase(curd.model_name);
 
     const lines: string[] = [];
     lines.push('# File: ' + fileName);
@@ -187,8 +201,8 @@ export class BackendGenerator {
     return lines.join('\n');
   }
 
-  private generateRoutesFile(template: FeatureTemplate): string {
-    const fileName = 'app/api/' + this.kebabCase(template.feature_name) + '.py';
+  private async generateRoutesFile(template: FeatureTemplate): Promise<string> {
+    const fileName = 'app/api/' + kebabCase(template.feature_name) + '.py';
 
     const lines: string[] = [];
     lines.push('# File: ' + fileName);
@@ -203,7 +217,7 @@ export class BackendGenerator {
     lines.push('from ..db.session import get_db');
     lines.push('');
 
-    const prefix = this.kebabCase(template.feature_name);
+    const prefix = kebabCase(template.feature_name);
     lines.push('router = APIRouter(prefix="/' + prefix + '", tags=["' + template.feature_name + '"])');
     lines.push('');
 
@@ -220,15 +234,22 @@ export class BackendGenerator {
       lines.push('    db: Session = Depends(get_db)' + authDep);
       lines.push('):');
       lines.push('    """' + route.handler_name + '"""');
-      lines.push('    pass');
+
+      // Handle handler logic
+      if (route.handler_logic?.type === 'ai') {
+        const result = await this.aiGenerator.generate(route.handler_logic.ai_request!);
+        lines.push('    ' + result.code.split('\n').join('\n    '));
+      } else {
+        lines.push('    pass');
+      }
       lines.push('');
     }
 
     return lines.join('\n');
   }
 
-  private generateServiceFile(service: any): string {
-    const fileName = 'app/services/' + this.kebabCase(service.name) + '.py';
+  private async generateServiceFile(service: any, template: FeatureTemplate): Promise<string> {
+    const fileName = 'app/services/' + kebabCase(service.name) + '.py';
 
     const lines: string[] = [];
     lines.push('# File: ' + fileName);
@@ -242,12 +263,54 @@ export class BackendGenerator {
 
     for (const method of service.methods) {
       lines.push('');
-      lines.push('    def ' + method.name + '(self):');
-      lines.push('        """' + method.description + '"""');
-      lines.push('        pass');
+      await this.generateServiceMethod(lines, method as MethodTemplate, template);
     }
 
     return lines.join('\n');
+  }
+
+  private async generateServiceMethod(lines: string[], method: MethodTemplate, template: FeatureTemplate): Promise<void> {
+    lines.push('    def ' + method.name + '(self' +
+      (method.async ? ', ' : ', ') +
+      'db: Session):');
+    lines.push('        """' + method.description + '"""');
+
+    if (method.logic?.type === 'ai') {
+      // AI 生成
+      const result = await this.aiGenerator.generate(method.logic.ai_request!);
+      const indentedCode = result.code.split('\n').map((l: string) => '        ' + l).join('\n');
+      lines.push(indentedCode);
+    } else if (method.logic?.type === 'template') {
+      // 模板片段
+      const model = template.backend.models[0]?.name || 'Model';
+      const snippet = fillSnippet(method.logic.impl!, {
+        method_name: method.name,
+        model: model,
+        description: method.description,
+      });
+      const indentedCode = snippet.split('\n').map((l: string) => '        ' + l).join('\n');
+      lines.push(indentedCode);
+    } else if (method.logic?.type === 'hybrid') {
+      // Hybrid: 先用模板再用 AI
+      if (method.logic.impl) {
+        const model = template.backend.models[0]?.name || 'Model';
+        const snippet = fillSnippet(method.logic.impl, {
+          method_name: method.name,
+          model: model,
+          description: method.description,
+        });
+        const indentedCode = snippet.split('\n').map((l: string) => '        ' + l).join('\n');
+        lines.push(indentedCode);
+      }
+      if (method.logic.ai_request) {
+        const result = await this.aiGenerator.generate(method.logic.ai_request);
+        const indentedCode = result.code.split('\n').map((l: string) => '        ' + l).join('\n');
+        lines.push(indentedCode);
+      }
+    } else {
+      // 无 logic 定义，生成 pass
+      lines.push('        pass');
+    }
   }
 
   private generateFieldDef(field: any): string {
@@ -275,33 +338,13 @@ export class BackendGenerator {
     const prefixes = ['create_', 'get_', 'update_', 'delete_', 'mark_'];
     for (const prefix of prefixes) {
       if (handlerName.startsWith(prefix)) {
-        return this.capitalize(handlerName.replace(prefix, '').replace(/_([a-z])/g, (_, c) => c.toUpperCase()));
+        return pascalCase(handlerName.replace(prefix, '').replace(/_([a-z])/g, (_, c) => c.toUpperCase()));
       }
     }
     return 'Item';
   }
 
-  private capitalize(s: string): string {
-    return s.charAt(0).toUpperCase() + s.slice(1);
-  }
-
-  private kebabCase(s: string): string {
-    return s.replace(/([a-z])([A-Z])/g, '$1-$2').replace(/([A-Z])([A-Z][a-z])/g, '$1-$2').toLowerCase();
-  }
-
   private mapTypeToPython(type: string): string {
-    const map: Record<string, string> = {
-      'string': 'str',
-      'text': 'str',
-      'integer': 'int',
-      'boolean': 'bool',
-      'datetime': 'datetime',
-      'json': 'dict',
-      'int': 'int',
-      'str': 'str',
-      'bool': 'bool',
-      'float': 'float',
-    };
-    return map[type] || 'str';
+    return getPythonType(type as any) || 'str';
   }
 }
