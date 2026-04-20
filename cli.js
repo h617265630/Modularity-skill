@@ -7,6 +7,9 @@
 import { compileWithFrontendAwareness } from './dist/index.js';
 import { detectProject } from './dist/detector/project-detector.js';
 import { FileWriter, generateFilePatches } from './dist/writer/file-writer.js';
+import { CodeModifier, findAndModifyAuthFiles, modifyExistingFrontendCode } from './dist/writer/code-modifier.js';
+import { FrontendAnalyzer } from './dist/detector/frontend-analyzer.js';
+import { ProjectScanner } from './dist/core/project-scanner.js';
 import { scaffoldProject } from './dist/scaffolding/index.js';
 import { ensureShadcnComponents } from './dist/scaffolding/shadcn.js';
 import { generateModuleUI, prepareUIContext } from './dist/scaffolding/ui-generator.js';
@@ -390,6 +393,207 @@ async function handleModuleInstall(moduleCommand) {
     frontendAnalysis: Object.keys(frontendAnalysis).length > 0 ? frontendAnalysis : undefined,
   });
 
+  // ============================================================================
+  // 检测并修改现有前端文件（登录/注册等）
+  // ============================================================================
+  let frontendModifications = [];
+  if (project.structure.frontend_path) {
+    try {
+      const scanner = new ProjectScanner();
+      const projectStructure = scanner.scan(projectPath);
+
+      if (projectStructure.frontend) {
+        const analyzer = new FrontendAnalyzer(projectStructure.frontend);
+        const detected = await analyzer.analyzeFeature(result.feature_name);
+
+        if (detected && (detected.hooks.length > 0 || detected.components.length > 0)) {
+          console.log('\n🔗 Modifying existing frontend code to connect to new backend...\n');
+
+          // 根据模块类型确定 API 端点
+          const apiEndpoints = getApiEndpointsForModule(moduleCommand, result.backend_changes.api_routes);
+
+          // 查找并修改认证相关文件
+          const modifier = new CodeModifier(projectPath);
+          const authFiles = await modifier.findExistingAuthFiles();
+
+          if (authFiles.loginForms.length > 0 || authFiles.registerForms.length > 0 ||
+              authFiles.authHooks.length > 0 || authFiles.apiServices.length > 0) {
+
+            console.log(`   Found existing auth files:`);
+            console.log(`   - Login forms: ${authFiles.loginForms.length}`);
+            console.log(`   - Register forms: ${authFiles.registerForms.length}`);
+            console.log(`   - Auth hooks: ${authFiles.authHooks.length}`);
+            console.log(`   - API services: ${authFiles.apiServices.length}`);
+
+            // 修改找到的文件
+            const loginEndpoint = apiEndpoints.login || '/api/users/login';
+            const registerEndpoint = apiEndpoints.register || '/api/users/register';
+
+            for (const file of authFiles.loginForms) {
+              const mod = await modifier.modifyLoginForm(file, loginEndpoint);
+              if (mod) {
+                frontendModifications.push(mod);
+                if (options.write && !options.dryRun) {
+                  await modifier.writeModifiedFile(mod);
+                  console.log(`   ✏️  Modified: ${path.basename(file)}`);
+                }
+              }
+            }
+
+            for (const file of authFiles.registerForms) {
+              const mod = await modifier.modifyRegisterForm(file, registerEndpoint);
+              if (mod) {
+                frontendModifications.push(mod);
+                if (options.write && !options.dryRun) {
+                  await modifier.writeModifiedFile(mod);
+                  console.log(`   ✏️  Modified: ${path.basename(file)}`);
+                }
+              }
+            }
+
+            for (const file of authFiles.authHooks) {
+              const mod = await modifier.modifyAuthHook(file, apiEndpoints);
+              if (mod) {
+                frontendModifications.push(mod);
+                if (options.write && !options.dryRun) {
+                  await modifier.writeModifiedFile(mod);
+                  console.log(`   ✏️  Modified: ${path.basename(file)}`);
+                }
+              }
+            }
+
+            for (const file of authFiles.apiServices) {
+              const mod = await modifier.modifyApiService(file, { login: loginEndpoint, register: registerEndpoint });
+              if (mod) {
+                frontendModifications.push(mod);
+                if (options.write && !options.dryRun) {
+                  await modifier.writeModifiedFile(mod);
+                  console.log(`   ✏️  Modified: ${path.basename(file)}`);
+                }
+              }
+            }
+
+            // ============================================================================
+            // 修改导航栏 - 登录后显示用户名
+            // ============================================================================
+            if (authFiles.navbars.length > 0 && moduleCommand === '/user-m') {
+              console.log(`   - Navbars: ${authFiles.navbars.length}`);
+
+              // 查找认证 hook 文件作为参考
+              let authHookPath = '';
+              if (authFiles.authHooks.length > 0) {
+                authHookPath = authFiles.authHooks[0].replace(projectPath, '').replace(/\\/g, '/').replace(/^\//, '');
+              }
+
+              for (const file of authFiles.navbars) {
+                const mod = await modifier.modifyNavbar(file, {
+                  authHookImport: authHookPath || '../hooks/useAuth',
+                  userVarName: 'user',
+                });
+                if (mod) {
+                  frontendModifications.push(mod);
+                  if (options.write && !options.dryRun) {
+                    await modifier.writeModifiedFile(mod);
+                    console.log(`   ✏️  Modified navbar: ${path.basename(file)} (added user state)`);
+                  }
+                }
+              }
+            }
+          }
+
+          // ============================================================================
+          // 修改帖子相关文件 - /post-m 模块
+          // ============================================================================
+          if (moduleCommand === '/post-m') {
+            const postFiles = await modifier.findExistingPostFiles();
+
+            if (postFiles.postLists.length > 0 || postFiles.postItems.length > 0 ||
+                postFiles.postInputs.length > 0 || postFiles.postHooks.length > 0 ||
+                postFiles.postApis.length > 0) {
+
+              console.log('\n🔗 Modifying existing post-related frontend code...\n');
+              console.log(`   Found post files:`);
+              console.log(`   - Post lists: ${postFiles.postLists.length}`);
+              console.log(`   - Post items: ${postFiles.postItems.length}`);
+              console.log(`   - Post inputs: ${postFiles.postInputs.length}`);
+              console.log(`   - Post hooks: ${postFiles.postHooks.length}`);
+              console.log(`   - Post APIs: ${postFiles.postApis.length}`);
+
+              // 获取帖子相关的 API 端点
+              const postApiEndpoints = getPostApiEndpointsForModule(moduleCommand, result.backend_changes.api_routes);
+
+              const listEndpoint = postApiEndpoints.list || '/api/posts';
+              const createEndpoint = postApiEndpoints.create || '/api/posts';
+              const detailEndpoint = postApiEndpoints.detail || '/api/posts/{id}';
+
+              // 修改帖子列表
+              for (const file of postFiles.postLists) {
+                const mod = await modifier.modifyPostList(file, listEndpoint);
+                if (mod) {
+                  frontendModifications.push(mod);
+                  if (options.write && !options.dryRun) {
+                    await modifier.writeModifiedFile(mod);
+                    console.log(`   ✏️  Modified: ${path.basename(file)}`);
+                  }
+                }
+              }
+
+              // 修改帖子项
+              for (const file of postFiles.postItems) {
+                const mod = await modifier.modifyPostItem(file, detailEndpoint);
+                if (mod) {
+                  frontendModifications.push(mod);
+                  if (options.write && !options.dryRun) {
+                    await modifier.writeModifiedFile(mod);
+                    console.log(`   ✏️  Modified: ${path.basename(file)}`);
+                  }
+                }
+              }
+
+              // 修改发帖组件
+              for (const file of postFiles.postInputs) {
+                const mod = await modifier.modifyPostInput(file, createEndpoint);
+                if (mod) {
+                  frontendModifications.push(mod);
+                  if (options.write && !options.dryRun) {
+                    await modifier.writeModifiedFile(mod);
+                    console.log(`   ✏️  Modified: ${path.basename(file)}`);
+                  }
+                }
+              }
+
+              // 修改帖子 Hooks
+              for (const file of postFiles.postHooks) {
+                const mod = await modifier.modifyPostHook(file, postApiEndpoints);
+                if (mod) {
+                  frontendModifications.push(mod);
+                  if (options.write && !options.dryRun) {
+                    await modifier.writeModifiedFile(mod);
+                    console.log(`   ✏️  Modified: ${path.basename(file)}`);
+                  }
+                }
+              }
+
+              // 修改帖子 API Services
+              for (const file of postFiles.postApis) {
+                const mod = await modifier.modifyPostApi(file, { list: listEndpoint, create: createEndpoint });
+                if (mod) {
+                  frontendModifications.push(mod);
+                  if (options.write && !options.dryRun) {
+                    await modifier.writeModifiedFile(mod);
+                    console.log(`   ✏️  Modified: ${path.basename(file)}`);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('\n⚠️  Frontend modification skipped:', error.message);
+    }
+  }
+
   console.log('='.repeat(60));
   console.log(`Feature: ${result.feature_name}`);
   console.log(`Description: ${result.description}`);
@@ -404,10 +608,18 @@ async function handleModuleInstall(moduleCommand) {
 
   console.log('\n🖥️  Frontend Changes:');
   console.log('  New Components:', result.frontend_changes.new_components.map(c => c.name).join(', ') || 'None');
+  console.log('  Modified Existing:', frontendModifications.length > 0 ? frontendModifications.length + ' file(s)' : 'None');
   console.log('  State Changes:', result.frontend_changes.state_changes.length || 0);
 
   console.log('\n📋 Integration Steps:');
   result.integration_steps.forEach((step, i) => console.log(`  ${i + 1}. ${step}`));
+
+  if (frontendModifications.length > 0 && options.verbose) {
+    console.log('\n📝 Frontend Modifications:');
+    for (const mod of frontendModifications) {
+      console.log(`   ${path.basename(mod.file_path)}: ${mod.changes.length} change(s)`);
+    }
+  }
 
   if (result.risk_notes.length > 0) {
     console.log('\n⚠️  Risk Notes:');
@@ -793,6 +1005,111 @@ Examples:
 
   # Detect and write all found frontend modules
   npx modularity-skill /attach-um --write
+
+// ============================================================================
+// 辅助函数：获取模块对应的 API 端点
+// ============================================================================
+function getApiEndpointsForModule(moduleCommand, apiRoutes) {
+  // 从生成的 API 路由中提取端点
+  const endpoints = {
+    login: null,
+    register: null,
+    logout: null,
+    me: null,
+  };
+
+  for (const route of apiRoutes) {
+    const path = route.path.toLowerCase();
+    const method = route.method.toLowerCase();
+
+    if (path.includes('login') || path.includes('signin')) {
+      endpoints.login = route.path;
+    }
+    if (path.includes('register') || path.includes('signup')) {
+      endpoints.register = route.path;
+    }
+    if (path.includes('logout')) {
+      endpoints.logout = route.path;
+    }
+    if (path.includes('me') || path === '/users/me') {
+      endpoints.me = route.path;
+    }
+  }
+
+  // 如果没有找到，提供默认值
+  if (!endpoints.login) {
+    endpoints.login = '/api/users/login';
+  }
+  if (!endpoints.register) {
+    endpoints.register = '/api/users/register';
+  }
+  if (!endpoints.me) {
+    endpoints.me = '/api/users/me';
+  }
+
+  return endpoints;
+}
+
+// ============================================================================
+// 辅助函数：获取帖子模块对应的 API 端点
+// ============================================================================
+function getPostApiEndpointsForModule(moduleCommand, apiRoutes) {
+  // 从生成的 API 路由中提取端点
+  const endpoints = {
+    list: null,
+    detail: null,
+    create: null,
+    update: null,
+    delete: null,
+  };
+
+  for (const route of apiRoutes) {
+    const path = route.path.toLowerCase();
+    const method = route.method.toLowerCase();
+
+    // 帖子列表
+    if (method === 'get' && (path === '/posts' || path === '/api/posts' || path.includes('posts'))) {
+      if (!endpoints.list) {
+        endpoints.list = route.path;
+      }
+    }
+    // 帖子详情
+    if (method === 'get' && (path.includes('/posts/') || path.includes('/post/'))) {
+      endpoints.detail = route.path;
+    }
+    // 创建帖子
+    if (method === 'post' && (path === '/posts' || path === '/api/posts' || path.includes('create'))) {
+      endpoints.create = route.path;
+    }
+    // 更新帖子
+    if (method === 'put' && (path.includes('/posts/') || path.includes('/post/'))) {
+      endpoints.update = route.path;
+    }
+    // 删除帖子
+    if (method === 'delete' && (path.includes('/posts/') || path.includes('/post/'))) {
+      endpoints.delete = route.path;
+    }
+  }
+
+  // 如果没有找到，提供默认值
+  if (!endpoints.list) {
+    endpoints.list = '/api/posts';
+  }
+  if (!endpoints.detail) {
+    endpoints.detail = '/api/posts/{id}';
+  }
+  if (!endpoints.create) {
+    endpoints.create = '/api/posts';
+  }
+  if (!endpoints.update) {
+    endpoints.update = '/api/posts/{id}';
+  }
+  if (!endpoints.delete) {
+    endpoints.delete = '/api/posts/{id}';
+  }
+
+  return endpoints;
+}
 
 Project Auto-Detection:
   The CLI automatically detects your project type:
