@@ -44,6 +44,17 @@ npx modularity-skill /like --write
 npx modularity-skill /like --write --run
 ```
 
+## 前端修改
+
+检测到前端代码后，会自动修改以下文件对接后端 API：
+
+| 文件类型 | 修改内容 |
+|----------|----------|
+| LikeButton | 替换点赞 API URL 指向 `/api/likes` |
+| LikeCount | 替换计数 API URL |
+| Like Hooks | 替换 baseURL 和端点路径 |
+| Like APIs | 替换 baseURL 和端点路径 |
+
 ## 前端检测逻辑
 
 `/like` 会自动检测以下前端代码：

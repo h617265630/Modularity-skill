@@ -44,6 +44,18 @@ npx modularity-skill /follow --write
 npx modularity-skill /follow --write --run
 ```
 
+## 前端修改
+
+检测到前端代码后，会自动修改以下文件对接后端 API：
+
+| 文件类型 | 修改内容 |
+|----------|----------|
+| FollowButton | 替换关注/取消关注 API URL |
+| FollowersList | 替换粉丝列表 API URL |
+| FollowingList | 替换关注列表 API URL |
+| Follow Hooks | 替换 baseURL 和端点路径 |
+| Follow APIs | 替换 baseURL 和端点路径 |
+
 ## 前端检测逻辑
 
 `/follow` 会自动检测以下前端代码：

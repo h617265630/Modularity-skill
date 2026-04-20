@@ -44,6 +44,18 @@ npx modularity-skill /comment-m --write
 npx modularity-skill /comment-m --write --run
 ```
 
+## 前端修改
+
+检测到前端代码后，会自动修改以下文件对接后端 API：
+
+| 文件类型 | 修改内容 |
+|----------|----------|
+| CommentList | 替换 API URL 指向 `/api/comments` |
+| CommentItem | 替换详情 API URL |
+| CommentInput | 替换创建评论 API URL |
+| Comment Hooks | 替换 baseURL 和端点路径 |
+| Comment APIs | 替换 baseURL 和端点路径 |
+
 ## 前端检测逻辑
 
 `/comment-m` 会自动检测以下前端代码：

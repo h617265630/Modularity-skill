@@ -587,6 +587,385 @@ async function handleModuleInstall(moduleCommand) {
               }
             }
           }
+
+          // ============================================================================
+          // 修改评论相关文件 - /comment-m 模块
+          // ============================================================================
+          if (moduleCommand === '/comment-m') {
+            const commentFiles = await modifier.findExistingCommentFiles();
+
+            if (commentFiles.commentLists.length > 0 || commentFiles.commentItems.length > 0 ||
+                commentFiles.commentInputs.length > 0 || commentFiles.commentHooks.length > 0 ||
+                commentFiles.commentApis.length > 0) {
+
+              console.log('\n🔗 Modifying existing comment-related frontend code...\n');
+              console.log(`   Found comment files:`);
+              console.log(`   - Comment lists: ${commentFiles.commentLists.length}`);
+              console.log(`   - Comment items: ${commentFiles.commentItems.length}`);
+              console.log(`   - Comment inputs: ${commentFiles.commentInputs.length}`);
+              console.log(`   - Comment hooks: ${commentFiles.commentHooks.length}`);
+              console.log(`   - Comment APIs: ${commentFiles.commentApis.length}`);
+
+              const commentApiEndpoints = getCommentApiEndpointsForModule(moduleCommand, result.backend_changes.api_routes);
+
+              const listEndpoint = commentApiEndpoints.list || '/api/comments';
+              const createEndpoint = commentApiEndpoints.create || '/api/comments';
+
+              // 修改评论列表
+              for (const file of commentFiles.commentLists) {
+                const mod = await modifier.modifyApiFile(file, 'comment', { list: listEndpoint, comments: listEndpoint });
+                if (mod) {
+                  frontendModifications.push(mod);
+                  if (options.write && !options.dryRun) {
+                    await modifier.writeModifiedFile(mod);
+                    console.log(`   ✏️  Modified: ${path.basename(file)}`);
+                  }
+                }
+              }
+
+              // 修改评论输入
+              for (const file of commentFiles.commentInputs) {
+                const mod = await modifier.modifyApiFile(file, 'comment', { create: createEndpoint, add: createEndpoint, reply: createEndpoint });
+                if (mod) {
+                  frontendModifications.push(mod);
+                  if (options.write && !options.dryRun) {
+                    await modifier.writeModifiedFile(mod);
+                    console.log(`   ✏️  Modified: ${path.basename(file)}`);
+                  }
+                }
+              }
+
+              // 修改评论 Hooks
+              for (const file of commentFiles.commentHooks) {
+                const mod = await modifier.modifyApiFile(file, 'comment', commentApiEndpoints);
+                if (mod) {
+                  frontendModifications.push(mod);
+                  if (options.write && !options.dryRun) {
+                    await modifier.writeModifiedFile(mod);
+                    console.log(`   ✏️  Modified: ${path.basename(file)}`);
+                  }
+                }
+              }
+
+              // 修改评论 API Services
+              for (const file of commentFiles.commentApis) {
+                const mod = await modifier.modifyApiFile(file, 'comment', commentApiEndpoints);
+                if (mod) {
+                  frontendModifications.push(mod);
+                  if (options.write && !options.dryRun) {
+                    await modifier.writeModifiedFile(mod);
+                    console.log(`   ✏️  Modified: ${path.basename(file)}`);
+                  }
+                }
+              }
+            }
+          }
+
+          // ============================================================================
+          // 修改点赞相关文件 - /like 模块
+          // ============================================================================
+          if (moduleCommand === '/like') {
+            const likeFiles = await modifier.findExistingLikeFiles();
+
+            if (likeFiles.likeButtons.length > 0 || likeFiles.likeCounts.length > 0 ||
+                likeFiles.likeHooks.length > 0 || likeFiles.likeApis.length > 0) {
+
+              console.log('\n🔗 Modifying existing like-related frontend code...\n');
+              console.log(`   Found like files:`);
+              console.log(`   - Like buttons: ${likeFiles.likeButtons.length}`);
+              console.log(`   - Like counts: ${likeFiles.likeCounts.length}`);
+              console.log(`   - Like hooks: ${likeFiles.likeHooks.length}`);
+              console.log(`   - Like APIs: ${likeFiles.likeApis.length}`);
+
+              const likeApiEndpoints = getLikeApiEndpointsForModule(moduleCommand, result.backend_changes.api_routes);
+
+              // 修改点赞按钮
+              for (const file of likeFiles.likeButtons) {
+                const mod = await modifier.modifyApiFile(file, 'like', { like: likeApiEndpoints.toggle, toggle: likeApiEndpoints.toggle });
+                if (mod) {
+                  frontendModifications.push(mod);
+                  if (options.write && !options.dryRun) {
+                    await modifier.writeModifiedFile(mod);
+                    console.log(`   ✏️  Modified: ${path.basename(file)}`);
+                  }
+                }
+              }
+
+              // 修改点赞 Hooks
+              for (const file of likeFiles.likeHooks) {
+                const mod = await modifier.modifyApiFile(file, 'like', likeApiEndpoints);
+                if (mod) {
+                  frontendModifications.push(mod);
+                  if (options.write && !options.dryRun) {
+                    await modifier.writeModifiedFile(mod);
+                    console.log(`   ✏️  Modified: ${path.basename(file)}`);
+                  }
+                }
+              }
+
+              // 修改点赞 API Services
+              for (const file of likeFiles.likeApis) {
+                const mod = await modifier.modifyApiFile(file, 'like', likeApiEndpoints);
+                if (mod) {
+                  frontendModifications.push(mod);
+                  if (options.write && !options.dryRun) {
+                    await modifier.writeModifiedFile(mod);
+                    console.log(`   ✏️  Modified: ${path.basename(file)}`);
+                  }
+                }
+              }
+            }
+          }
+
+          // ============================================================================
+          // 修改关注相关文件 - /follow 模块
+          // ============================================================================
+          if (moduleCommand === '/follow') {
+            const followFiles = await modifier.findExistingFollowFiles();
+
+            if (followFiles.followButtons.length > 0 || followFiles.followersLists.length > 0 ||
+                followFiles.followingLists.length > 0 || followFiles.followHooks.length > 0 ||
+                followFiles.followApis.length > 0) {
+
+              console.log('\n🔗 Modifying existing follow-related frontend code...\n');
+              console.log(`   Found follow files:`);
+              console.log(`   - Follow buttons: ${followFiles.followButtons.length}`);
+              console.log(`   - Followers lists: ${followFiles.followersLists.length}`);
+              console.log(`   - Following lists: ${followFiles.followingLists.length}`);
+              console.log(`   - Follow hooks: ${followFiles.followHooks.length}`);
+              console.log(`   - Follow APIs: ${followFiles.followApis.length}`);
+
+              const followApiEndpoints = getFollowApiEndpointsForModule(moduleCommand, result.backend_changes.api_routes);
+
+              // 修改关注按钮
+              for (const file of followFiles.followButtons) {
+                const mod = await modifier.modifyApiFile(file, 'follow', { follow: followApiEndpoints.follow, unfollow: followApiEndpoints.unfollow });
+                if (mod) {
+                  frontendModifications.push(mod);
+                  if (options.write && !options.dryRun) {
+                    await modifier.writeModifiedFile(mod);
+                    console.log(`   ✏️  Modified: ${path.basename(file)}`);
+                  }
+                }
+              }
+
+              // 修改关注 Hooks
+              for (const file of followFiles.followHooks) {
+                const mod = await modifier.modifyApiFile(file, 'follow', followApiEndpoints);
+                if (mod) {
+                  frontendModifications.push(mod);
+                  if (options.write && !options.dryRun) {
+                    await modifier.writeModifiedFile(mod);
+                    console.log(`   ✏️  Modified: ${path.basename(file)}`);
+                  }
+                }
+              }
+
+              // 修改关注 API Services
+              for (const file of followFiles.followApis) {
+                const mod = await modifier.modifyApiFile(file, 'follow', followApiEndpoints);
+                if (mod) {
+                  frontendModifications.push(mod);
+                  if (options.write && !options.dryRun) {
+                    await modifier.writeModifiedFile(mod);
+                    console.log(`   ✏️  Modified: ${path.basename(file)}`);
+                  }
+                }
+              }
+            }
+          }
+
+          // ============================================================================
+          // 修改通知相关文件 - /notification 模块
+          // ============================================================================
+          if (moduleCommand === '/notification') {
+            const notifFiles = await modifier.findExistingNotificationFiles();
+
+            if (notifFiles.notificationBells.length > 0 || notifFiles.notificationLists.length > 0 ||
+                notifFiles.notificationHooks.length > 0 || notifFiles.notificationApis.length > 0) {
+
+              console.log('\n🔗 Modifying existing notification-related frontend code...\n');
+              console.log(`   Found notification files:`);
+              console.log(`   - Notification bells: ${notifFiles.notificationBells.length}`);
+              console.log(`   - Notification lists: ${notifFiles.notificationLists.length}`);
+              console.log(`   - Notification hooks: ${notifFiles.notificationHooks.length}`);
+              console.log(`   - Notification APIs: ${notifFiles.notificationApis.length}`);
+
+              const notifApiEndpoints = getNotificationApiEndpointsForModule(moduleCommand, result.backend_changes.api_routes);
+
+              // 修改通知铃
+              for (const file of notifFiles.notificationBells) {
+                const mod = await modifier.modifyApiFile(file, 'notification', { list: notifApiEndpoints.list, bell: notifApiEndpoints.list });
+                if (mod) {
+                  frontendModifications.push(mod);
+                  if (options.write && !options.dryRun) {
+                    await modifier.writeModifiedFile(mod);
+                    console.log(`   ✏️  Modified: ${path.basename(file)}`);
+                  }
+                }
+              }
+
+              // 修改通知列表
+              for (const file of notifFiles.notificationLists) {
+                const mod = await modifier.modifyApiFile(file, 'notification', { list: notifApiEndpoints.list, notifications: notifApiEndpoints.list });
+                if (mod) {
+                  frontendModifications.push(mod);
+                  if (options.write && !options.dryRun) {
+                    await modifier.writeModifiedFile(mod);
+                    console.log(`   ✏️  Modified: ${path.basename(file)}`);
+                  }
+                }
+              }
+
+              // 修改通知 Hooks
+              for (const file of notifFiles.notificationHooks) {
+                const mod = await modifier.modifyApiFile(file, 'notification', notifApiEndpoints);
+                if (mod) {
+                  frontendModifications.push(mod);
+                  if (options.write && !options.dryRun) {
+                    await modifier.writeModifiedFile(mod);
+                    console.log(`   ✏️  Modified: ${path.basename(file)}`);
+                  }
+                }
+              }
+
+              // 修改通知 API Services
+              for (const file of notifFiles.notificationApis) {
+                const mod = await modifier.modifyApiFile(file, 'notification', notifApiEndpoints);
+                if (mod) {
+                  frontendModifications.push(mod);
+                  if (options.write && !options.dryRun) {
+                    await modifier.writeModifiedFile(mod);
+                    console.log(`   ✏️  Modified: ${path.basename(file)}`);
+                  }
+                }
+              }
+            }
+          }
+
+          // ============================================================================
+          // 修改私信相关文件 - /message 模块
+          // ============================================================================
+          if (moduleCommand === '/message') {
+            const messageFiles = await modifier.findExistingMessageFiles();
+
+            if (messageFiles.messageLists.length > 0 || messageFiles.messageItems.length > 0 ||
+                messageFiles.messageHooks.length > 0 || messageFiles.messageApis.length > 0) {
+
+              console.log('\n🔗 Modifying existing message-related frontend code...\n');
+              console.log(`   Found message files:`);
+              console.log(`   - Message lists: ${messageFiles.messageLists.length}`);
+              console.log(`   - Message items: ${messageFiles.messageItems.length}`);
+              console.log(`   - Message hooks: ${messageFiles.messageHooks.length}`);
+              console.log(`   - Message APIs: ${messageFiles.messageApis.length}`);
+
+              const messageApiEndpoints = getMessageApiEndpointsForModule(moduleCommand, result.backend_changes.api_routes);
+
+              // 修改私信列表
+              for (const file of messageFiles.messageLists) {
+                const mod = await modifier.modifyApiFile(file, 'message', { list: messageApiEndpoints.list, messages: messageApiEndpoints.list });
+                if (mod) {
+                  frontendModifications.push(mod);
+                  if (options.write && !options.dryRun) {
+                    await modifier.writeModifiedFile(mod);
+                    console.log(`   ✏️  Modified: ${path.basename(file)}`);
+                  }
+                }
+              }
+
+              // 修改私信 Hooks
+              for (const file of messageFiles.messageHooks) {
+                const mod = await modifier.modifyApiFile(file, 'message', messageApiEndpoints);
+                if (mod) {
+                  frontendModifications.push(mod);
+                  if (options.write && !options.dryRun) {
+                    await modifier.writeModifiedFile(mod);
+                    console.log(`   ✏️  Modified: ${path.basename(file)}`);
+                  }
+                }
+              }
+
+              // 修改私信 API Services
+              for (const file of messageFiles.messageApis) {
+                const mod = await modifier.modifyApiFile(file, 'message', messageApiEndpoints);
+                if (mod) {
+                  frontendModifications.push(mod);
+                  if (options.write && !options.dryRun) {
+                    await modifier.writeModifiedFile(mod);
+                    console.log(`   ✏️  Modified: ${path.basename(file)}`);
+                  }
+                }
+              }
+            }
+          }
+
+          // ============================================================================
+          // 修改搜索相关文件 - /search 模块
+          // ============================================================================
+          if (moduleCommand === '/search') {
+            const searchFiles = await modifier.findExistingSearchFiles();
+
+            if (searchFiles.searchBars.length > 0 || searchFiles.searchResults.length > 0 ||
+                searchFiles.searchHooks.length > 0 || searchFiles.searchApis.length > 0) {
+
+              console.log('\n🔗 Modifying existing search-related frontend code...\n');
+              console.log(`   Found search files:`);
+              console.log(`   - Search bars: ${searchFiles.searchBars.length}`);
+              console.log(`   - Search results: ${searchFiles.searchResults.length}`);
+              console.log(`   - Search hooks: ${searchFiles.searchHooks.length}`);
+              console.log(`   - Search APIs: ${searchFiles.searchApis.length}`);
+
+              const searchApiEndpoints = getSearchApiEndpointsForModule(moduleCommand, result.backend_changes.api_routes);
+
+              // 修改搜索栏
+              for (const file of searchFiles.searchBars) {
+                const mod = await modifier.modifyApiFile(file, 'search', { search: searchApiEndpoints.search, query: searchApiEndpoints.search });
+                if (mod) {
+                  frontendModifications.push(mod);
+                  if (options.write && !options.dryRun) {
+                    await modifier.writeModifiedFile(mod);
+                    console.log(`   ✏️  Modified: ${path.basename(file)}`);
+                  }
+                }
+              }
+
+              // 修改搜索结果
+              for (const file of searchFiles.searchResults) {
+                const mod = await modifier.modifyApiFile(file, 'search', { search: searchApiEndpoints.search, results: searchApiEndpoints.search });
+                if (mod) {
+                  frontendModifications.push(mod);
+                  if (options.write && !options.dryRun) {
+                    await modifier.writeModifiedFile(mod);
+                    console.log(`   ✏️  Modified: ${path.basename(file)}`);
+                  }
+                }
+              }
+
+              // 修改搜索 Hooks
+              for (const file of searchFiles.searchHooks) {
+                const mod = await modifier.modifyApiFile(file, 'search', searchApiEndpoints);
+                if (mod) {
+                  frontendModifications.push(mod);
+                  if (options.write && !options.dryRun) {
+                    await modifier.writeModifiedFile(mod);
+                    console.log(`   ✏️  Modified: ${path.basename(file)}`);
+                  }
+                }
+              }
+
+              // 修改搜索 API Services
+              for (const file of searchFiles.searchApis) {
+                const mod = await modifier.modifyApiFile(file, 'search', searchApiEndpoints);
+                if (mod) {
+                  frontendModifications.push(mod);
+                  if (options.write && !options.dryRun) {
+                    await modifier.writeModifiedFile(mod);
+                    console.log(`   ✏️  Modified: ${path.basename(file)}`);
+                  }
+                }
+              }
+            }
+          }
         }
       }
     } catch (error) {
@@ -1107,6 +1486,224 @@ function getPostApiEndpointsForModule(moduleCommand, apiRoutes) {
   if (!endpoints.delete) {
     endpoints.delete = '/api/posts/{id}';
   }
+
+  return endpoints;
+}
+
+// ============================================================================
+// 辅助函数：获取评论模块对应的 API 端点
+// ============================================================================
+function getCommentApiEndpointsForModule(moduleCommand, apiRoutes) {
+  const endpoints = {
+    list: null,
+    detail: null,
+    create: null,
+    update: null,
+    delete: null,
+  };
+
+  for (const route of apiRoutes) {
+    const path = route.path.toLowerCase();
+    const method = route.method.toLowerCase();
+
+    if (method === 'get' && (path.includes('comments') || path.includes('comment'))) {
+      if (!endpoints.list) endpoints.list = route.path;
+      if (path.includes('/{id}')) endpoints.detail = route.path;
+    }
+    if (method === 'post' && (path.includes('comments') || path.includes('comment'))) {
+      endpoints.create = route.path;
+    }
+    if (method === 'put' && (path.includes('comments') || path.includes('comment'))) {
+      endpoints.update = route.path;
+    }
+    if (method === 'delete' && (path.includes('comments') || path.includes('comment'))) {
+      endpoints.delete = route.path;
+    }
+  }
+
+  if (!endpoints.list) endpoints.list = '/api/comments';
+  if (!endpoints.detail) endpoints.detail = '/api/comments/{id}';
+  if (!endpoints.create) endpoints.create = '/api/comments';
+  if (!endpoints.update) endpoints.update = '/api/comments/{id}';
+  if (!endpoints.delete) endpoints.delete = '/api/comments/{id}';
+
+  return endpoints;
+}
+
+// ============================================================================
+// 辅助函数：获取点赞模块对应的 API 端点
+// ============================================================================
+function getLikeApiEndpointsForModule(moduleCommand, apiRoutes) {
+  const endpoints = {
+    toggle: null,
+    status: null,
+    count: null,
+  };
+
+  for (const route of apiRoutes) {
+    const path = route.path.toLowerCase();
+    const method = route.method.toLowerCase();
+
+    if (method === 'post' && (path.includes('like') || path.includes('likes'))) {
+      endpoints.toggle = route.path;
+    }
+    if (method === 'get' && path.includes('like') && path.includes('status')) {
+      endpoints.status = route.path;
+    }
+    if (method === 'get' && path.includes('like') && path.includes('count')) {
+      endpoints.count = route.path;
+    }
+  }
+
+  if (!endpoints.toggle) endpoints.toggle = '/api/likes';
+  if (!endpoints.status) endpoints.status = '/api/likes/status';
+  if (!endpoints.count) endpoints.count = '/api/likes/count';
+
+  return endpoints;
+}
+
+// ============================================================================
+// 辅助函数：获取关注模块对应的 API 端点
+// ============================================================================
+function getFollowApiEndpointsForModule(moduleCommand, apiRoutes) {
+  const endpoints = {
+    follow: null,
+    unfollow: null,
+    followers: null,
+    following: null,
+    isFollowing: null,
+  };
+
+  for (const route of apiRoutes) {
+    const path = route.path.toLowerCase();
+    const method = route.method.toLowerCase();
+
+    if (method === 'post' && (path.includes('follow') || path.includes('following'))) {
+      if (!endpoints.follow) endpoints.follow = route.path;
+      if (path.includes('unfollow')) endpoints.unfollow = route.path;
+    }
+    if (method === 'get' && path.includes('followers')) {
+      endpoints.followers = route.path;
+    }
+    if (method === 'get' && path.includes('following')) {
+      endpoints.following = route.path;
+    }
+    if (method === 'get' && path.includes('is-following') || path.includes('check')) {
+      endpoints.isFollowing = route.path;
+    }
+  }
+
+  if (!endpoints.follow) endpoints.follow = '/api/follows';
+  if (!endpoints.unfollow) endpoints.unfollow = '/api/follows/{user_id}';
+  if (!endpoints.followers) endpoints.followers = '/api/users/{id}/followers';
+  if (!endpoints.following) endpoints.following = '/api/users/{id}/following';
+  if (!endpoints.isFollowing) endpoints.isFollowing = '/api/follows/check/{user_id}';
+
+  return endpoints;
+}
+
+// ============================================================================
+// 辅助函数：获取通知模块对应的 API 端点
+// ============================================================================
+function getNotificationApiEndpointsForModule(moduleCommand, apiRoutes) {
+  const endpoints = {
+    list: null,
+    markRead: null,
+    markAllRead: null,
+    delete: null,
+  };
+
+  for (const route of apiRoutes) {
+    const path = route.path.toLowerCase();
+    const method = route.method.toLowerCase();
+
+    if (method === 'get' && (path.includes('notification') || path.includes('notifications'))) {
+      if (!endpoints.list) endpoints.list = route.path;
+    }
+    if (method === 'put' && path.includes('notification') && path.includes('read')) {
+      endpoints.markRead = route.path;
+    }
+    if (method === 'put' && path.includes('notifications') && path.includes('read')) {
+      endpoints.markAllRead = route.path;
+    }
+    if (method === 'delete' && (path.includes('notification') || path.includes('notifications'))) {
+      endpoints.delete = route.path;
+    }
+  }
+
+  if (!endpoints.list) endpoints.list = '/api/notifications';
+  if (!endpoints.markRead) endpoints.markRead = '/api/notifications/{id}/read';
+  if (!endpoints.markAllRead) endpoints.markAllRead = '/api/notifications/read-all';
+  if (!endpoints.delete) endpoints.delete = '/api/notifications/{id}';
+
+  return endpoints;
+}
+
+// ============================================================================
+// 辅助函数：获取私信模块对应的 API 端点
+// ============================================================================
+function getMessageApiEndpointsForModule(moduleCommand, apiRoutes) {
+  const endpoints = {
+    list: null,
+    conversations: null,
+    send: null,
+    markRead: null,
+    delete: null,
+  };
+
+  for (const route of apiRoutes) {
+    const path = route.path.toLowerCase();
+    const method = route.method.toLowerCase();
+
+    if (method === 'get' && path.includes('messages')) {
+      if (!endpoints.list) endpoints.list = route.path;
+    }
+    if (method === 'get' && (path.includes('conversation') || path.includes('conversations'))) {
+      endpoints.conversations = route.path;
+    }
+    if (method === 'post' && (path.includes('message') || path.includes('messages'))) {
+      endpoints.send = route.path;
+    }
+    if (method === 'put' && path.includes('message') && path.includes('read')) {
+      endpoints.markRead = route.path;
+    }
+    if (method === 'delete' && (path.includes('message') || path.includes('messages'))) {
+      endpoints.delete = route.path;
+    }
+  }
+
+  if (!endpoints.list) endpoints.list = '/api/messages';
+  if (!endpoints.conversations) endpoints.conversations = '/api/conversations';
+  if (!endpoints.send) endpoints.send = '/api/messages';
+  if (!endpoints.markRead) endpoints.markRead = '/api/messages/{id}/read';
+  if (!endpoints.delete) endpoints.delete = '/api/messages/{id}';
+
+  return endpoints;
+}
+
+// ============================================================================
+// 辅助函数：获取搜索模块对应的 API 端点
+// ============================================================================
+function getSearchApiEndpointsForModule(moduleCommand, apiRoutes) {
+  const endpoints = {
+    search: null,
+    suggestions: null,
+  };
+
+  for (const route of apiRoutes) {
+    const path = route.path.toLowerCase();
+    const method = route.method.toLowerCase();
+
+    if (method === 'get' && (path.includes('search'))) {
+      endpoints.search = route.path;
+    }
+    if (method === 'get' && path.includes('suggest')) {
+      endpoints.suggestions = route.path;
+    }
+  }
+
+  if (!endpoints.search) endpoints.search = '/api/search';
+  if (!endpoints.suggestions) endpoints.suggestions = '/api/search/suggestions';
 
   return endpoints;
 }

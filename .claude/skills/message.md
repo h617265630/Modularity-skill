@@ -44,6 +44,17 @@ npx modularity-skill /message --write
 npx modularity-skill /message --write --run
 ```
 
+## 前端修改
+
+检测到前端代码后，会自动修改以下文件对接后端 API：
+
+| 文件类型 | 修改内容 |
+|----------|----------|
+| MessageList | 替换私信列表 API URL |
+| MessageItem | 替换私信详情 API URL |
+| Message Hooks | 替换 baseURL 和端点路径 |
+| Message APIs | 替换 baseURL 和端点路径 |
+
 ## 前端检测逻辑
 
 `/message` 会自动检测以下前端代码：

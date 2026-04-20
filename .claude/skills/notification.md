@@ -44,6 +44,17 @@ npx modularity-skill /notification --write
 npx modularity-skill /notification --write --run
 ```
 
+## 前端修改
+
+检测到前端代码后，会自动修改以下文件对接后端 API：
+
+| 文件类型 | 修改内容 |
+|----------|----------|
+| NotificationBell | 替换通知列表 API URL |
+| NotificationList | 替换通知列表 API URL |
+| Notification Hooks | 替换 baseURL 和端点路径 |
+| Notification APIs | 替换 baseURL 和端点路径 |
+
 ## 前端检测逻辑
 
 `/notification` 会自动检测以下前端代码：
